@@ -1,0 +1,121 @@
+:root {
+  --color-paper: #f4efe6;
+  --color-paper-raised: #fbf7ef;
+  --color-ink: #2c2416;
+  --color-ink-muted: #6b5e4e;
+  --color-rule: #d7cdb8;
+  --color-accent: #6f5b3e;
+  --color-focus: #1f4b3a;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+  --font-ui: "Source Han Sans SC", "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --radius-sm: 2px;
+  --nav-width: 9.5rem;
+  --agent-width: 17rem;
+  --focus-ring: 2px solid var(--color-focus);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+body {
+  overflow: hidden;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--nav-width) minmax(0, 1fr) var(--agent-width);
+  height: 100%;
+}
+
+.spaces {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4);
+  border-right: 1px solid var(--color-rule);
+  background: var(--color-paper);
+}
+
+.brand {
+  margin: 0 0 var(--space-5);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 0.08em;
+}
+
+.spaces button {
+  appearance: none;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-ink-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.spaces button[aria-current='page'] {
+  color: var(--color-ink);
+  background: var(--color-paper-raised);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.spaces button:focus-visible,
+.agent:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.workspace {
+  padding: var(--space-7) var(--space-6);
+  overflow: auto;
+}
+
+.workspace h1,
+.agent h2 {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.workspace h1 {
+  font-size: 2rem;
+}
+
+.lede {
+  max-width: 36rem;
+  margin: 0;
+  color: var(--color-ink-muted);
+}
+
+.agent {
+  padding: var(--space-6) var(--space-5);
+  border-left: 1px solid var(--color-rule);
+  background: var(--color-paper-raised);
+}
+
+.agent h2 {
+  font-size: 1.1rem;
+}

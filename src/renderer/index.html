@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>知流</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <nav class="spaces" aria-label="主空间">
+        <p class="brand">知流</p>
+        <button type="button" data-space="library" aria-current="page">书库/阅读</button>
+        <button type="button" data-space="thoughts">思想</button>
+        <button type="button" data-space="creation">创作</button>
+      </nav>
+
+      <main class="workspace">
+        <section data-space-panel="library">
+          <h1>书库/阅读</h1>
+          <p class="lede">来源文档会在这里等待被重新打开。阅读是主业，Agent 只待在侧栏。</p>
+        </section>
+        <section data-space-panel="thoughts" hidden>
+          <h1>思想</h1>
+          <p class="lede">摘录与思想笔记会在这里生长，而不是堆在聊天记录里。</p>
+        </section>
+        <section data-space-panel="creation" hidden>
+          <h1>创作</h1>
+          <p class="lede">稿件在这里写成，来源归属会一直看得见。</p>
+        </section>
+      </main>
+
+      <aside class="agent" aria-label="Agent">
+        <h2>Agent</h2>
+        <p class="lede">侧栏跟随三个空间。配置模型之后，提问不会替换正在阅读的页面。</p>
+      </aside>
+    </div>
+    <script src="./main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "zhiliu",
+  "productName": "知流",
+  "version": "0.1.0",
+  "private": true,
+  "description": "本地优先的桌面知识工作台",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/main/index.cjs",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npm run build && electron .",
+    "test": "npm run test:e2e",
+    "test:e2e": "npm run build && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^22.18.0",
+    "electron": "^38.2.0",
+    "esbuild": "^0.25.9",
+    "typescript": "^5.9.2"
+  }
+}
