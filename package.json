@@ -19,5 +19,8 @@
     "electron": "^38.2.0",
     "esbuild": "^0.25.9",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3"
   }
 }

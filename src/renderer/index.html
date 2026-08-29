@@ -11,7 +11,15 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="shell">
+    <section id="first-run" class="first-run" hidden>
+      <h1>选择知识库位置</h1>
+      <p class="lede">
+        知流把来源文档、笔记和稿件都放在你指定的本地目录里。这个目录可以整份复制到另一台电脑，不依赖任何账号。
+      </p>
+      <button type="button" id="choose-vault">选择知识库位置</button>
+    </section>
+
+    <div class="shell" id="app-shell" hidden>
       <nav class="spaces" aria-label="主空间">
         <p class="brand">知流</p>
         <button type="button" data-space="library" aria-current="page">书库/阅读</button>
