@@ -1,10 +1,11 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
-import type { SaveModelSettingsInput, SaveNoteInput } from '../shared/api';
+import type { SaveModelSettingsInput, SaveNoteInput, TurnDirection } from '../shared/api';
 import { createCredentialStore } from './credentials';
 import { Library } from './library';
 import { ModelSettings } from './models';
 import { PreferenceStore } from './preferences';
+import { Reading } from './reading';
 import { Vault } from './vault';
 
 if (process.env.ZHILIU_USER_DATA) {
@@ -22,6 +23,7 @@ if (process.env.ZHILIU_E2E === '1') {
 const preferences = new PreferenceStore(app.getPath('userData'));
 const vault = new Vault(preferences, process.env);
 const library = new Library(vault, process.env);
+const reading = new Reading(library);
 const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
 
 function createWindow(): void {
@@ -75,6 +77,8 @@ ipcMain.handle(
 );
 
 ipcMain.handle('library:list', async () => library.list());
+ipcMain.handle('library:open', async (_event, id: string) => reading.open(id));
+ipcMain.handle('library:turn', async (_event, direction: TurnDirection) => reading.turn(direction));
 
 ipcMain.handle('library:import', async () => {
   const stub = library.stubbedFiles();

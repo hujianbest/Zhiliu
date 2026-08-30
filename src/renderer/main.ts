@@ -1,4 +1,4 @@
-import type { ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, SourceDocument } from '../shared/api';
+import type { ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingView, SourceDocument } from '../shared/api';
 
 const spaces = ['library', 'thoughts', 'creation'] as const;
 type Space = (typeof spaces)[number];
@@ -84,10 +84,12 @@ function renderLibrary(sources: SourceDocument[]): void {
   empty.hidden = sources.length > 0;
   for (const source of sources) {
     const item = document.createElement('li');
-    const title = document.createElement('p');
-    title.className = 'source-title';
-    title.textContent = source.title;
-    item.append(title);
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'source-title';
+    open.textContent = source.title;
+    open.dataset.openSource = source.id;
+    item.append(open);
     if (source.authors.length > 0) {
       const authors = document.createElement('p');
       authors.className = 'source-authors';
@@ -120,6 +122,130 @@ function showLibraryFailures(result: ImportResult['failures']): void {
   alert.textContent = result.map((failure) => `${failure.filename}：${failure.message}`).join(' ');
 }
 
+function libraryBrowse(): HTMLElement | null {
+  return document.getElementById('library-browse');
+}
+
+function libraryReader(): HTMLElement | null {
+  return document.getElementById('library-reader');
+}
+
+function readerFrame(): HTMLIFrameElement | null {
+  return document.getElementById('reader-frame') as HTMLIFrameElement | null;
+}
+
+function readerPrev(): HTMLButtonElement | null {
+  return document.getElementById('reader-prev') as HTMLButtonElement | null;
+}
+
+function readerNext(): HTMLButtonElement | null {
+  return document.getElementById('reader-next') as HTMLButtonElement | null;
+}
+
+function isReading(): boolean {
+  const reader = libraryReader();
+  return Boolean(reader && !reader.hidden);
+}
+
+const readerPageCss = `
+/* Token values match src/renderer/styles.css :root — srcdoc cannot inherit parent variables. */
+:root {
+  --color-paper: #f4efe6;
+  --color-ink: #2c2416;
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", "Source Han Serif SC", serif;
+}
+html, body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  line-height: 1.8;
+  user-select: text;
+  -webkit-user-select: text;
+}
+body {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+h1, h2, h3 { font-weight: 600; letter-spacing: 0.02em; }
+p { margin: 0 0 1em; }
+img { max-width: 100%; height: auto; }
+`;
+
+function readerDocument(html: string): string {
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><style>${readerPageCss}</style></head><body>${html}</body></html>`;
+}
+
+function onReaderKey(event: KeyboardEvent): void {
+  if (!isReading() || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+    return;
+  }
+  if (settingsDialog().open) {
+    return;
+  }
+  if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    void turnReading('next');
+  }
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    void turnReading('prev');
+  }
+}
+
+function bindFrameKeys(frame: HTMLIFrameElement): void {
+  const doc = frame.contentDocument;
+  if (!doc) {
+    return;
+  }
+  doc.addEventListener('keydown', onReaderKey);
+}
+
+async function turnReading(direction: 'prev' | 'next'): Promise<void> {
+  if (!isReading()) {
+    return;
+  }
+  showReading(await window.zhiliu.library.turn(direction));
+}
+
+function showReading(view: ReadingView): void {
+  const browse = libraryBrowse();
+  const reader = libraryReader();
+  const title = document.getElementById('reader-title');
+  const chapter = document.getElementById('reader-chapter');
+  const frame = readerFrame();
+  const prev = readerPrev();
+  const next = readerNext();
+  if (!browse || !reader || !title || !chapter || !frame || !prev || !next) {
+    return;
+  }
+  browse.hidden = true;
+  reader.hidden = false;
+  title.textContent = view.title;
+  chapter.textContent = view.chapterLabel;
+  prev.disabled = !view.hasPrev;
+  next.disabled = !view.hasNext;
+  frame.onload = () => bindFrameKeys(frame);
+  frame.srcdoc = readerDocument(view.html);
+  reader.focus();
+}
+
+function showLibraryList(): void {
+  const browse = libraryBrowse();
+  const reader = libraryReader();
+  const frame = readerFrame();
+  if (!browse || !reader) {
+    return;
+  }
+  reader.hidden = true;
+  browse.hidden = false;
+  if (frame) {
+    frame.srcdoc = '';
+  }
+}
+
 async function openSettings(): Promise<void> {
   fillSettings(await window.zhiliu.models.view());
   document.getElementById('settings-saved')!.textContent = '';
@@ -137,6 +263,7 @@ document.querySelectorAll<HTMLButtonElement>('[data-space]').forEach((button) =>
 
 window.addEventListener('keydown', (event) => {
   if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) {
+    onReaderKey(event);
     return;
   }
 
@@ -165,6 +292,32 @@ document.getElementById('import-epub')?.addEventListener('click', () => {
     renderLibrary(result.sources);
     showLibraryFailures(result.failures);
   });
+});
+
+document.getElementById('library-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>('[data-open-source]');
+  const id = button?.dataset.openSource;
+  if (!id) {
+    return;
+  }
+  void window.zhiliu.library.open(id).then(showReading).catch((error) => {
+    const message = error instanceof Error ? error.message : '无法打开这本书';
+    showLibraryFailures([{ filename: button.textContent ?? '', message }]);
+  });
+});
+
+document.getElementById('reader-back')?.addEventListener('click', () => {
+  showLibraryList();
+});
+document.getElementById('reader-prev')?.addEventListener('click', () => {
+  void turnReading('prev');
+});
+document.getElementById('reader-next')?.addEventListener('click', () => {
+  void turnReading('next');
 });
 
 document.getElementById('choose-vault')?.addEventListener('click', () => {

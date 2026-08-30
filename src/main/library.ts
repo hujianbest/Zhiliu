@@ -32,6 +32,14 @@ export class Library {
     return (await this.read()).sources;
   }
 
+  async get(id: string): Promise<SourceDocument | null> {
+    return (await this.list()).find((source) => source.id === id) ?? null;
+  }
+
+  sourcePath(id: string): string {
+    return path.join(this.requireRoot(), 'sources', `${id}.epub`);
+  }
+
   async importPaths(filePaths: string[]): Promise<ImportResult> {
     const sources: SourceDocument[] = [];
     const failures: ImportFailure[] = [];

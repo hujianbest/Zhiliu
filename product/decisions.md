@@ -4,3 +4,4 @@
 - D-2 2026-08-29 知识库结构、Frontmatter 与稳定标识按 ADR-0002 — 依据: 票 02 要求在实现前记录该 ADR。
 - D-3 2026-08-30 API Key 只进操作系统凭据库；主套件用假适配器 — 依据: 票 03 与 ADR-0003。
 - D-4 2026-08-30 书库目录在 `.zhiliu/library.json`；EPUB 二进制以稳定 id 放入 `sources/` 且被知识库 `.gitignore` 排除 — 依据: 票 04 与 ADR-0004。
+- D-5 2026-08-30 主进程按 OPF spine 抽出章节、净化后交给无 `allow-scripts` 的 iframe 阅读 — 依据: 票 05 与 ADR-0005。

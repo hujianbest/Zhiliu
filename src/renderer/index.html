@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>知流</title>
@@ -30,12 +30,26 @@
 
       <main class="workspace">
         <section data-space-panel="library">
-          <h1>书库/阅读</h1>
-          <p class="lede">来源文档会在这里等待被重新打开。阅读是主业，Agent 只待在侧栏。</p>
-          <p id="library-empty">还没有来源文档。</p>
-          <p id="library-error" role="alert" hidden></p>
-          <ul id="library-list" aria-label="书库"></ul>
-          <button type="button" id="import-epub">导入 EPUB</button>
+          <div id="library-browse">
+            <h1>书库/阅读</h1>
+            <p class="lede">来源文档会在这里等待被重新打开。阅读是主业，Agent 只待在侧栏。</p>
+            <p id="library-empty">还没有来源文档。</p>
+            <p id="library-error" role="alert" hidden></p>
+            <ul id="library-list" aria-label="书库"></ul>
+            <button type="button" id="import-epub">导入 EPUB</button>
+          </div>
+          <div id="library-reader" hidden tabindex="-1">
+            <div class="reader-bar">
+              <button type="button" id="reader-back">返回书库</button>
+              <h1 id="reader-title"></h1>
+            </div>
+            <p id="reader-chapter" class="reader-chapter"></p>
+            <iframe id="reader-frame" title="正文" sandbox="allow-same-origin"></iframe>
+            <nav class="reader-nav" aria-label="章节">
+              <button type="button" id="reader-prev" title="上一章（←）" aria-keyshortcuts="ArrowLeft">上一章</button>
+              <button type="button" id="reader-next" title="下一章（→）" aria-keyshortcuts="ArrowRight">下一章</button>
+            </nav>
+          </div>
         </section>
         <section data-space-panel="thoughts" hidden>
           <h1>思想</h1>

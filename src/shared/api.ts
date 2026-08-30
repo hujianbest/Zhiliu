@@ -87,6 +87,16 @@ export type ImportResult = {
   failures: ImportFailure[];
 };
 
+export type TurnDirection = 'prev' | 'next';
+
+export type ReadingView = {
+  title: string;
+  chapterLabel: string;
+  html: string;
+  hasPrev: boolean;
+  hasNext: boolean;
+};
+
 export type ZhiliuApi = {
   vault: {
     current(): Promise<VaultStatus>;
@@ -104,5 +114,7 @@ export type ZhiliuApi = {
   library: {
     list(): Promise<SourceDocument[]>;
     importEpubs(): Promise<ImportResult>;
+    open(id: string): Promise<ReadingView>;
+    turn(direction: TurnDirection): Promise<ReadingView>;
   };
 };
