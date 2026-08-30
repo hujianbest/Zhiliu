@@ -21,7 +21,7 @@ test('未配置模型时仍可进入三个空间，Agent 给出未配置提示',
 test('设置既有可见入口也有可发现的键盘路径', async () => {
   const session = await launchZhiliu();
   try {
-    const settings = session.window.getByRole('button', { name: '设置' });
+    const settings = session.window.getByRole('button', { name: '设置', exact: true });
     await expect(settings).toBeVisible();
     await expect(settings).toHaveAttribute('title', /Ctrl\+,/);
     await settings.click();
@@ -42,7 +42,7 @@ test('两个模型角色可以独立配置，也可以配成同一端点', async
   const vaultPath = session.vaultPath as string;
   const secret = 'sk-e2e-keep-out-of-vault';
   try {
-    await session.window.getByRole('button', { name: '设置' }).click();
+    await session.window.getByRole('button', { name: '设置', exact: true }).click();
     await fillRole(session.window, '快速/低成本', {
       baseUrl: session.fakeOpenAI.baseUrl,
       model: 'fast-model',
@@ -66,7 +66,7 @@ test('两个模型角色可以独立配置，也可以配成同一端点', async
     preserveVault: true,
   });
   try {
-    await restarted.window.getByRole('button', { name: '设置' }).click();
+    await restarted.window.getByRole('button', { name: '设置', exact: true }).click();
     await expect(restarted.window.getByLabel('快速/低成本 模型名')).toHaveValue('fast-model');
     await expect(restarted.window.getByLabel('深度写作 模型名')).toHaveValue('deep-model');
     await expect(restarted.window.getByLabel('快速/低成本 接口地址')).toHaveValue(restarted.fakeOpenAI.baseUrl);
@@ -79,7 +79,7 @@ test('两个模型角色可以独立配置，也可以配成同一端点', async
 test('保存前的连通性测试区分成功、端点不可达与凭据无效', async () => {
   const session = await launchZhiliu();
   try {
-    await session.window.getByRole('button', { name: '设置' }).click();
+    await session.window.getByRole('button', { name: '设置', exact: true }).click();
     const fast = session.window.getByRole('group', { name: '快速/低成本' });
 
     await fillRole(session.window, '快速/低成本', {
