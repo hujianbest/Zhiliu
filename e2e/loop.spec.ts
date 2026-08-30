@@ -186,8 +186,8 @@ test('提案确认次数等于操作次数；就绪后生成正式稿；删除�
       return window.zhiliu.workbench.createProposal(topic!.id);
     });
     await session.window.getByRole('button', { name: '创作' }).click();
-    await expect(session.window.getByLabel('提案论点')).toBeVisible();
-    await expect(session.window.getByRole('button', { name: '确认论点' })).toBeVisible();
+    await expect(session.window.getByLabel('提案论点').first()).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '确认论点' }).first()).toBeVisible();
     await expect(session.window.getByRole('button', { name: '排除' }).first()).toBeVisible();
     await expect(session.window.getByRole('button', { name: '纳入' }).first()).toBeVisible();
     await session.window.evaluate(async (id) => window.zhiliu.workbench.setThesis(id, '确认后的论点。'), proposal.id);
@@ -350,7 +350,7 @@ test('完整闭环：三份合计超过 1MB 的来源走到干净导出', async 
       await window.zhiliu.notes.save({ quotation: '来源丙独特句。', thought: '闭环思想三。', sourceId: webSources[2]?.id });
     });
     await session.window.getByRole('button', { name: '创作' }).click();
-    await session.window.getByRole('button', { name: '组织主题（创作区）' }).click();
+    await session.window.getByRole('button', { name: '组织主题（主栏）' }).click();
     await expect(session.window.getByRole('list', { name: '主题' }).getByText('思想线索').first()).toBeVisible();
     await session.window
       .getByRole('list', { name: '主题' })
