@@ -118,7 +118,7 @@ test('手工正式稿预览、定稿才进检索、撤回后不再命中', async
     await session.window.getByRole('button', { name: '保存稿件' }).click();
     const before = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), unique);
     expect(before.some((hit) => hit.snippet.includes(unique))).toBeFalsy();
-    await session.window.getByRole('button', { name: '定稿' }).click();
+    await session.window.getByRole('button', { name: '定稿', exact: true }).click();
     const after = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), unique);
     expect(after.some((hit) => hit.kind === 'draft' && hit.snippet.includes(unique))).toBeTruthy();
     await session.window.getByRole('button', { name: '撤回定稿' }).click();

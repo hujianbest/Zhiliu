@@ -782,7 +782,13 @@ ${revision.text}
       topic_id: input.topicId ?? null,
       proposal_id: input.proposalId ?? null,
       trial_id: input.trialId ?? null,
-      spans: input.spans,
+      spans: input.spans.map((span) => ({
+        text: span.text,
+        provenance: span.provenance,
+        ...(span.noteId ? { noteId: span.noteId } : {}),
+        ...(span.sourceId ? { sourceId: span.sourceId } : {}),
+        ...(span.sourcePosition ? { sourcePosition: span.sourcePosition } : {}),
+      })),
     };
     await writeFile(filePath, matter.stringify(input.body, data), 'utf8');
     view.staleRefs = await this.staleRefs(view);
