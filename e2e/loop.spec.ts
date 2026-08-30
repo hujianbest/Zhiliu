@@ -351,11 +351,11 @@ test('完整闭环：三份合计超过 1MB 的来源走到干净导出', async 
     });
     await session.window.getByRole('button', { name: '创作' }).click();
     await session.window.getByRole('button', { name: '组织主题（主栏）' }).click();
-    await expect(session.window.getByRole('list', { name: '主题' }).getByText('思想线索').first()).toBeVisible();
+    await expect(session.window.getByRole('list', { name: '主题' }).getByText('· 思想线索').first()).toBeVisible();
     await session.window
       .getByRole('list', { name: '主题' })
       .locator('li')
-      .filter({ hasText: '思想线索' })
+      .filter({ hasText: '· 思想线索' })
       .getByRole('button', { name: '生成提案' })
       .click();
     await session.window.getByLabel('提案论点').fill('闭环论点。');
