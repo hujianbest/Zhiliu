@@ -40,16 +40,17 @@ test('两个模型角色可以独立配置，也可以配成同一端点', async
   const session = await launchZhiliu({ preserveUserData: true, preserveVault: true });
   const userDataPath = session.userDataPath;
   const vaultPath = session.vaultPath as string;
+  const savedBaseUrl = session.fakeOpenAI.baseUrl;
   const secret = 'sk-e2e-keep-out-of-vault';
   try {
     await session.window.getByRole('button', { name: '设置', exact: true }).click();
     await fillRole(session.window, '快速/低成本', {
-      baseUrl: session.fakeOpenAI.baseUrl,
+      baseUrl: savedBaseUrl,
       model: 'fast-model',
       apiKey: secret,
     });
     await fillRole(session.window, '深度写作', {
-      baseUrl: session.fakeOpenAI.baseUrl,
+      baseUrl: savedBaseUrl,
       model: 'deep-model',
       apiKey: secret,
     });
@@ -69,7 +70,8 @@ test('两个模型角色可以独立配置，也可以配成同一端点', async
     await restarted.window.getByRole('button', { name: '设置', exact: true }).click();
     await expect(restarted.window.getByLabel('快速/低成本 模型名')).toHaveValue('fast-model');
     await expect(restarted.window.getByLabel('深度写作 模型名')).toHaveValue('deep-model');
-    await expect(restarted.window.getByLabel('快速/低成本 接口地址')).toHaveValue(restarted.fakeOpenAI.baseUrl);
+    await expect(restarted.window.getByLabel('快速/低成本 接口地址')).toHaveValue(savedBaseUrl);
+    await expect(restarted.window.getByLabel('深度写作 接口地址')).toHaveValue(savedBaseUrl);
     await assertSecretAbsentFromPlainFiles(vaultPath, userDataPath, secret);
   } finally {
     await restarted.close();
