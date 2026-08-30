@@ -298,7 +298,7 @@ test('完整闭环：三份合计超过 1MB 的来源走到干净导出', async 
   test.setTimeout(180_000);
   const started = Date.now();
   let blocked = 0;
-  const chunk = '青石阶还没干。'.repeat(12_000);
+  const chunk = '青石阶还没干。'.repeat(48_000);
   const web = await serve({
     '/a': `<html><body><article><h1>甲卷</h1><p>${chunk} 来源甲独特句。</p></article></body></html>`,
     '/b': `<html><body><article><h1>乙卷</h1><p>${chunk} 来源乙独特句。</p></article></body></html>`,
