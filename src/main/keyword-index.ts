@@ -94,6 +94,7 @@ function toHit(row: StoredRow, query: string): SearchHit {
     snippet: snippet(row.text, query),
     sourceId: row.source_id,
     partialIndex: row.partial_index === 1,
+    provenance: row.kind === 'note' ? 'user' : 'source',
     spineIndex: row.spine_index,
   };
   if (row.note_id) {

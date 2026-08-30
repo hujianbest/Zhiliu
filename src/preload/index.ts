@@ -9,11 +9,17 @@ const api: ZhiliuApi = {
   notes: {
     save: (input: SaveNoteInput) => ipcRenderer.invoke('notes:save', input),
     get: (id: string) => ipcRenderer.invoke('notes:get', id),
+    list: () => ipcRenderer.invoke('notes:list'),
     listForSource: (sourceId) => ipcRenderer.invoke('notes:listForSource', sourceId),
   },
   search: {
     query: (q, options) => ipcRenderer.invoke('search:query', q, options),
+    queryDetailed: (q, options) => ipcRenderer.invoke('search:queryDetailed', q, options),
     embedCalls: () => ipcRenderer.invoke('search:embedCalls'),
+  },
+  history: {
+    list: () => ipcRenderer.invoke('history:list'),
+    rollback: (id) => ipcRenderer.invoke('history:rollback', id),
   },
   models: {
     view: () => ipcRenderer.invoke('models:view'),

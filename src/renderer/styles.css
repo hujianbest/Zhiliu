@@ -474,6 +474,9 @@ dialog button:focus-visible,
 #open-settings:focus-visible,
 #agent-open-settings:focus-visible,
 #import-epub:focus-visible,
+#thoughts-to-library:focus-visible,
+#thoughts-notes button:focus-visible,
+#history-list button:focus-visible,
 #reader-back:focus-visible,
 #reader-prev:focus-visible,
 #reader-next:focus-visible,
@@ -611,4 +614,77 @@ dialog button,
 .search-snippet {
   margin: var(--space-1) 0 0;
   color: var(--color-ink-muted);
+}
+
+#thoughts-to-library {
+  appearance: none;
+  min-height: 44px;
+  margin: 0 0 var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+#thoughts-empty,
+#history-empty {
+  margin: 0 0 var(--space-4);
+  color: var(--color-ink-muted);
+}
+
+#thoughts-notes,
+#history-list {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  max-height: 18rem;
+  overflow: auto;
+}
+
+#thoughts-notes li + li,
+#history-list li + li {
+  margin-top: var(--space-2);
+}
+
+#thoughts-notes button,
+#history-list button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+#history-list li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+}
+
+#history-list .history-summary {
+  margin: 0;
+}
+
+#history-list .history-when {
+  margin: 0;
+  color: var(--color-ink-muted);
+}
+
+section[data-space-panel] h2 {
+  margin: var(--space-6) 0 var(--space-3);
+  font-family: var(--font-display);
+  font-size: 1.2rem;
 }

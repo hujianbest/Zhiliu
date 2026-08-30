@@ -72,6 +72,15 @@
         <section data-space-panel="thoughts" hidden>
           <h1>思想</h1>
           <p class="lede">摘录与思想笔记会在这里生长，而不是堆在聊天记录里。</p>
+          <p id="thoughts-empty">还没有笔记。阅读时记下一段，就会出现在这里。</p>
+          <p id="thoughts-cta">
+            <button type="button" id="thoughts-to-library">去书库阅读</button>
+          </p>
+          <ul id="thoughts-notes" aria-label="全部笔记"></ul>
+          <h2>历史</h2>
+          <p class="lede">每一次记下或导入都会出现在这里。回滚会把知识库恢复到当时的样子。</p>
+          <p id="history-empty">还没有可回看的操作。</p>
+          <ul id="history-list" aria-label="历史时间线"></ul>
         </section>
         <section data-space-panel="creation" hidden>
           <h1>创作</h1>
@@ -132,6 +141,15 @@
         </div>
         <p id="settings-saved" class="probe-status" role="status"></p>
       </form>
+    </dialog>
+    <dialog id="rollback-dialog" aria-labelledby="rollback-title">
+      <h2 id="rollback-title">回滚到此处</h2>
+      <p>之后记下的内容会从知识库里撤掉，回到这一刻的样子。</p>
+      <p id="rollback-summary"></p>
+      <div class="settings-actions">
+        <button type="button" id="rollback-confirm">确定回滚</button>
+        <button type="button" id="rollback-cancel">取消</button>
+      </div>
     </dialog>
     <dialog id="toc-dialog" aria-labelledby="toc-title">
       <h2 id="toc-title">目录</h2>

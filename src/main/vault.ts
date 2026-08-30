@@ -84,6 +84,24 @@ export class Vault {
     const root = this.requirePath();
     const now = new Date().toISOString();
     const thought = input.thought ?? '';
+    if (input.id) {
+      const existing = await this.getNote(input.id);
+      if (!existing) {
+        throw new Error('找不到这条笔记');
+      }
+      const note: AtomicNote = {
+        ...existing,
+        kind: thought.trim() === '' ? 'excerpt' : 'thought_note',
+        quotation: input.quotation,
+        thought,
+        sourceId: input.sourceId ?? existing.sourceId,
+        sourcePosition: input.sourcePosition ?? existing.sourcePosition,
+        relations: input.relations ?? existing.relations,
+        updated: now,
+      };
+      await writeFile(note.path, renderNote(note), 'utf8');
+      return note;
+    }
     const note: AtomicNote = {
       id: randomUUID(),
       kind: thought.trim() === '' ? 'excerpt' : 'thought_note',
@@ -212,16 +230,29 @@ const VAULT_GITIGNORE = [
   '*.epub',
   '*.pdf',
   '.zhiliu/cache/',
+  '.zhiliu/ocr/',
+  'models/',
+  '*.onnx',
   '',
 ].join('\n');
 
+const REQUIRED_IGNORES = ['*.epub', '*.pdf', '.zhiliu/cache/', '.zhiliu/ocr/', 'models/', '*.onnx'];
+
 async function writeVaultGitignore(vaultPath: string): Promise<void> {
   const gitignorePath = path.join(vaultPath, '.gitignore');
+  let current = '';
   try {
-    await readFile(gitignorePath, 'utf8');
+    current = await readFile(gitignorePath, 'utf8');
   } catch {
     await writeFile(gitignorePath, VAULT_GITIGNORE, 'utf8');
+    return;
   }
+  const missing = REQUIRED_IGNORES.filter((line) => !current.split('\n').includes(line));
+  if (missing.length === 0) {
+    return;
+  }
+  const suffix = `${current.endsWith('\n') ? '' : '\n'}${missing.join('\n')}\n`;
+  await writeFile(gitignorePath, `${current}${suffix}`, 'utf8');
 }
 
 async function ensureLibraryFile(vaultPath: string): Promise<void> {

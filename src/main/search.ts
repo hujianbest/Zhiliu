@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import sanitizeHtml from 'sanitize-html';
-import type { AtomicNote, EmbedCall, SearchHit, SearchQueryOptions } from '../shared/api';
+import type { AtomicNote, EmbedCall, SearchHit, SearchQueryOptions, SearchQueryResult } from '../shared/api';
 import type { EmbeddingAdapter } from './embeddings';
 import { extractReading } from './epub';
 import { KeywordIndex, type KeywordDoc } from './keyword-index';
@@ -69,6 +69,7 @@ function toHit(doc: KeywordDoc, query: string): SearchHit {
     sourceId: doc.sourceId,
     partialIndex: doc.partialIndex,
     spineIndex: doc.spineIndex,
+    provenance: doc.kind === 'note' ? 'user' : 'source',
   };
   if (doc.noteId) {
     hit.noteId = doc.noteId;
@@ -103,11 +104,10 @@ export class SearchIndex {
   }
 
   async rebuild(): Promise<void> {
+    this.vectors.clear();
     await this.rebuildKeyword();
     for (const doc of this.docs) {
-      if (!this.vectors.has(doc.id)) {
-        await this.upsertVector(doc);
-      }
+      await this.upsertVector(doc);
     }
   }
 
@@ -126,6 +126,10 @@ export class SearchIndex {
         await this.upsertVector(doc);
       }
     }
+  }
+
+  async queryDetailed(q: string, options?: SearchQueryOptions): Promise<SearchQueryResult> {
+    return { hits: await this.query(q, options), degraded: null };
   }
 
   async query(q: string, options?: SearchQueryOptions): Promise<SearchHit[]> {

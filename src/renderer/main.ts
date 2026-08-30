@@ -1,4 +1,4 @@
-import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SearchHit, SearchKind, SearchMode, SourceDocument, SourceKind, TocEntry } from '../shared/api';
+import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SearchHit, SearchKind, SearchMode, SourceDocument, SourceKind, TimelineEntry, TocEntry } from '../shared/api';
 
 const spaces = ['library', 'thoughts', 'creation'] as const;
 type Space = (typeof spaces)[number];
@@ -73,6 +73,112 @@ function showSpace(space: Space): void {
   document.querySelectorAll<HTMLElement>('[data-space-panel]').forEach((panel) => {
     panel.hidden = panel.dataset.spacePanel !== space;
   });
+  if (space === 'thoughts') {
+    void refreshThoughts();
+  }
+}
+
+function rollbackDialog(): HTMLDialogElement {
+  return document.getElementById('rollback-dialog') as HTMLDialogElement;
+}
+
+let pendingRollback: TimelineEntry | null = null;
+let thoughtNotes: AtomicNote[] = [];
+
+function formatWhen(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return date.toLocaleString('zh-CN', { hour12: false });
+}
+
+function renderThoughtNotes(notes: AtomicNote[]): void {
+  thoughtNotes = notes;
+  const list = document.getElementById('thoughts-notes');
+  const empty = document.getElementById('thoughts-empty');
+  const cta = document.getElementById('thoughts-cta');
+  if (!list || !empty) {
+    return;
+  }
+  list.replaceChildren();
+  empty.hidden = notes.length > 0;
+  if (cta) {
+    cta.hidden = notes.length > 0;
+  }
+  for (const note of notes) {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.thoughtNoteId = note.id;
+    const kind = document.createElement('span');
+    kind.className = 'source-note-kind';
+    kind.textContent = note.kind === 'excerpt' ? '摘录' : '思想笔记';
+    const quote = document.createElement('p');
+    quote.className = 'source-note-quote';
+    quote.textContent = note.quotation;
+    const thought = document.createElement('p');
+    thought.className = 'source-note-thought';
+    thought.textContent = note.thought.trim() === '' ? '（无）' : note.thought;
+    button.append(kind, quote, thought);
+    item.append(button);
+    list.append(item);
+  }
+}
+
+function renderHistory(entries: TimelineEntry[]): void {
+  const list = document.getElementById('history-list');
+  const empty = document.getElementById('history-empty');
+  if (!list || !empty) {
+    return;
+  }
+  list.replaceChildren();
+  empty.hidden = entries.length > 0;
+  for (const entry of entries) {
+    const item = document.createElement('li');
+    const summary = document.createElement('p');
+    summary.className = 'history-summary';
+    summary.textContent = entry.summary;
+    const when = document.createElement('p');
+    when.className = 'history-when';
+    when.textContent = formatWhen(entry.at);
+    const rollback = document.createElement('button');
+    rollback.type = 'button';
+    rollback.dataset.rollbackId = entry.id;
+    rollback.textContent = '回滚到此处';
+    item.append(summary, when, rollback);
+    list.append(item);
+  }
+}
+
+async function refreshThoughts(): Promise<void> {
+  const [notes, history] = await Promise.all([window.zhiliu.notes.list(), window.zhiliu.history.list()]);
+  renderThoughtNotes(notes);
+  renderHistory(history);
+}
+
+function beginRollback(id: string): void {
+  const item = document.querySelector<HTMLElement>(`#history-list [data-rollback-id="${id}"]`);
+  const summary = item?.parentElement?.querySelector('.history-summary')?.textContent ?? '';
+  pendingRollback = { id, summary, at: '' };
+  const label = document.getElementById('rollback-summary');
+  if (label) {
+    label.textContent = summary;
+  }
+  rollbackDialog().showModal();
+  document.getElementById('rollback-confirm')?.focus();
+}
+
+async function confirmRollback(): Promise<void> {
+  if (!pendingRollback) {
+    return;
+  }
+  const id = pendingRollback.id;
+  pendingRollback = null;
+  rollbackDialog().close();
+  await window.zhiliu.history.rollback(id);
+  await refreshThoughts();
+  await refreshLibrary();
 }
 
 function showApp(firstRun: boolean): void {
@@ -247,7 +353,7 @@ function onReaderKey(event: KeyboardEvent): void {
   if (!isReading() || event.altKey || event.ctrlKey || event.metaKey) {
     return;
   }
-  if (settingsDialog().open || captureDialog().open || searchDialog().open || isTextEntry(event)) {
+  if (settingsDialog().open || captureDialog().open || searchDialog().open || rollbackDialog().open || isTextEntry(event)) {
     return;
   }
   if (event.shiftKey && (event.key === 'R' || event.key === 'r')) {
@@ -448,6 +554,7 @@ async function saveCapture(): Promise<void> {
   captureDraft = null;
   captureDialog().close();
   await refreshSourceNotes(draft.sourceId);
+  await refreshThoughts();
 }
 
 function renderSourceNotes(notes: AtomicNote[]): void {
@@ -926,6 +1033,7 @@ document.getElementById('import-epub')?.addEventListener('click', () => {
   void window.zhiliu.library.importEpubs().then((result) => {
     renderLibrary(result.sources);
     showLibraryFailures(result.failures);
+    void refreshThoughts();
   });
 });
 
@@ -1048,6 +1156,49 @@ document.getElementById('search-results')?.addEventListener('click', (event) => 
 });
 document.getElementById('search')?.addEventListener('close', () => {
   document.getElementById('open-search')?.focus();
+});
+
+document.getElementById('thoughts-to-library')?.addEventListener('click', () => {
+  showSpace('library');
+});
+document.getElementById('thoughts-notes')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>('[data-thought-note-id]');
+  const id = button?.dataset.thoughtNoteId;
+  if (!id) {
+    return;
+  }
+  const note = thoughtNotes.find((item) => item.id === id);
+  if (!note) {
+    return;
+  }
+  showSpace('library');
+  void revealNote(note);
+});
+document.getElementById('history-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>('[data-rollback-id]');
+  const id = button?.dataset.rollbackId;
+  if (!id) {
+    return;
+  }
+  beginRollback(id);
+});
+document.getElementById('rollback-confirm')?.addEventListener('click', () => {
+  void confirmRollback();
+});
+document.getElementById('rollback-cancel')?.addEventListener('click', () => {
+  pendingRollback = null;
+  rollbackDialog().close();
+});
+document.getElementById('rollback-dialog')?.addEventListener('close', () => {
+  pendingRollback = null;
 });
 
 document.getElementById('choose-vault')?.addEventListener('click', () => {

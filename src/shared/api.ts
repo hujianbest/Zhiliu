@@ -21,6 +21,7 @@ export type AtomicNote = {
 };
 
 export type SaveNoteInput = {
+  id?: string;
   quotation: string;
   thought?: string;
   sourceId?: string;
@@ -113,6 +114,8 @@ export type ReadingView = {
 
 export type SearchKind = 'epub' | 'pdf' | 'note' | 'article' | 'draft';
 
+export type ProvenanceValue = 'user' | 'source' | 'ai';
+
 export type SearchHit = {
   kind: SearchKind;
   title: string;
@@ -122,6 +125,18 @@ export type SearchHit = {
   sourcePosition?: string;
   spineIndex?: number;
   partialIndex: boolean;
+  provenance: ProvenanceValue;
+};
+
+export type SearchQueryResult = {
+  hits: SearchHit[];
+  degraded: null | 'missing-model' | 'onnx' | 'worker';
+};
+
+export type TimelineEntry = {
+  id: string;
+  summary: string;
+  at: string;
 };
 
 export type SearchMode = 'keyword' | 'semantic' | 'mix';
@@ -142,11 +157,17 @@ export type ZhiliuApi = {
   notes: {
     save(input: SaveNoteInput): Promise<AtomicNote>;
     get(id: string): Promise<AtomicNote | null>;
+    list(): Promise<AtomicNote[]>;
     listForSource(sourceId: string): Promise<AtomicNote[]>;
   };
   search: {
     query(q: string, options?: SearchQueryOptions): Promise<SearchHit[]>;
+    queryDetailed(q: string, options?: SearchQueryOptions): Promise<SearchQueryResult>;
     embedCalls(): Promise<EmbedCall[]>;
+  };
+  history: {
+    list(): Promise<TimelineEntry[]>;
+    rollback(id: string): Promise<TimelineEntry[]>;
   };
   models: {
     view(): Promise<ModelSettingsView>;

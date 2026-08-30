@@ -9,3 +9,4 @@
 - D-7 2026-08-30 EPUB 划选位置记为 `epub:<spineIndex>:<startOffset>:<endOffset>` — 依据: 现票 08 与 `docs/adr/0019-epub-source-position-string.md`。
 - D-8 2026-08-30 全局检索是对话框（Ctrl+K）。关键词引擎是 SQLite FTS5（`docs/adr/0023-sqlite-fts5-keyword-search.md`）；混合检索的向量侧仍由票 12 按 ADR-0006/0007 改写。
 - D-10 2026-08-30 PDF 文本层由主进程抽出为净化 HTML，走 EPUB 同一阅读 iframe；无文本层明确不可选中 — 依据: 票 10 与 `docs/adr/0024-pdf-text-layer-iframe.md`。
+- D-11 2026-08-30 知识库自动 Git 提交；思想空间展示友好时间线并可回滚 — 依据: 票 11 与 `docs/adr/0025-vault-git-timeline.md`。
