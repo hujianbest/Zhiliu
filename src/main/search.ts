@@ -25,6 +25,47 @@ function parseSpine(position: string | null): number {
   return match ? Number(match[1]) : 0;
 }
 
+function docsForNote(note: AtomicNote, sourceTitle?: string): KeywordDoc[] {
+  const base = {
+    kind: 'note' as const,
+    sourceId: note.sourceId ?? '',
+    noteId: note.id,
+    sourcePosition: note.sourcePosition ?? '',
+    spineIndex: parseSpine(note.sourcePosition),
+    partialIndex: false,
+  };
+  if (note.provenance?.quotation === 'ai') {
+    const docs: KeywordDoc[] = [
+      {
+        ...base,
+        id: `note:${note.id}:ai`,
+        title: sourceTitle || '模型段落',
+        text: note.quotation,
+        provenance: 'ai',
+      },
+    ];
+    if (note.thought.trim()) {
+      docs.push({
+        ...base,
+        id: `note:${note.id}`,
+        title: sourceTitle || note.thought.slice(0, 40) || '笔记',
+        text: note.thought,
+        provenance: 'user',
+      });
+    }
+    return docs;
+  }
+  return [
+    {
+      ...base,
+      id: `note:${note.id}`,
+      title: sourceTitle || note.thought.trim() || note.quotation.slice(0, 40) || '笔记',
+      text: `${note.quotation}\n${note.thought}`,
+      provenance: note.kind === 'thought_note' ? 'user' : 'source',
+    },
+  ];
+}
+
 function snippet(text: string, query: string): string {
   const compact = text.replace(/\s+/g, ' ').trim();
   const haystack = compact.toLowerCase();
@@ -155,26 +196,12 @@ export class SearchIndex {
       return;
     }
     this.keyword.open(this.vault.path);
-    const doc: KeywordDoc = {
-      id: `note:${note.id}`,
-      kind: 'note',
-      title: note.thought.trim() || note.quotation.slice(0, 40) || '笔记',
-      text: `${note.quotation}\n${note.thought}`,
-      sourceId: note.sourceId ?? '',
-      noteId: note.id,
-      sourcePosition: note.sourcePosition ?? '',
-      spineIndex: parseSpine(note.sourcePosition),
-      partialIndex: false,
-      provenance: note.kind === 'thought_note' ? 'user' : 'source',
-    };
-    const index = this.docs.findIndex((item) => item.id === doc.id);
-    if (index >= 0) {
-      this.docs[index] = doc;
-    } else {
+    this.docs = this.docs.filter((item) => item.noteId !== note.id);
+    for (const doc of docsForNote(note)) {
       this.docs.push(doc);
+      this.keyword.upsert(doc);
+      await this.upsertVector(doc);
     }
-    this.keyword.upsert(doc);
-    await this.upsertVector(doc);
   }
 
   async indexImportedSources(): Promise<void> {
@@ -242,18 +269,7 @@ export class SearchIndex {
 
     for (const note of await this.vault.listNotes()) {
       const sourceTitle = note.sourceId ? titles.get(note.sourceId) : undefined;
-      docs.push({
-        id: `note:${note.id}`,
-        kind: 'note',
-        title: sourceTitle || note.thought.trim() || note.quotation.slice(0, 40) || '笔记',
-        text: `${note.quotation}\n${note.thought}`,
-        sourceId: note.sourceId ?? '',
-        noteId: note.id,
-        sourcePosition: note.sourcePosition ?? '',
-        spineIndex: parseSpine(note.sourcePosition),
-        partialIndex: false,
-        provenance: note.kind === 'thought_note' ? 'user' : 'source',
-      });
+      docs.push(...docsForNote(note, sourceTitle));
     }
 
     for (const source of sources) {

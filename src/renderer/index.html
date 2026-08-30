@@ -80,6 +80,8 @@
             <button type="button" id="thoughts-to-library">去书库阅读</button>
           </p>
           <ul id="thoughts-notes" aria-label="全部笔记"></ul>
+          <h2>并列修订</h2>
+          <ul id="revision-list" aria-label="并列修订"></ul>
           <h2>需要修复</h2>
           <p id="broken-empty">没有需要修复的文件。</p>
           <ul id="broken-list" aria-label="需要修复"></ul>
@@ -105,8 +107,12 @@
             正文
             <textarea id="draft-body" aria-label="稿件正文" rows="8"></textarea>
           </label>
-          <p id="draft-preview" aria-label="预览"></p>
+          <div id="draft-preview" aria-label="预览"></div>
           <p id="draft-spans" hidden></p>
+          <section id="citation-editor" hidden>
+            <h2>引用</h2>
+            <ul id="citation-list" aria-label="引用"></ul>
+          </section>
           <div class="settings-actions">
             <button type="button" id="draft-save">保存稿件</button>
             <button type="button" id="draft-finalize">定稿</button>
@@ -121,7 +127,7 @@
           </label>
           <p id="export-output" hidden></p>
           <h2>主题</h2>
-          <button type="button" id="organize-topics">组织主题</button>
+          <button type="button" id="organize-topics" aria-label="组织主题（创作区）">组织主题</button>
           <ul id="topic-list" aria-label="主题"></ul>
           <h2>建议收件箱</h2>
           <h3>你的思想线索</h3>
@@ -132,6 +138,7 @@
           <ul id="proposal-list" aria-label="提案"></ul>
           <h2>风格档案</h2>
           <textarea id="style-text" aria-label="风格档案" rows="4"></textarea>
+          <ul id="style-proposals" aria-label="风格更新提案"></ul>
           <div class="settings-actions">
             <button type="button" id="style-save">保存风格</button>
             <button type="button" id="style-rollback">回滚风格</button>
@@ -146,7 +153,7 @@
         <p id="agent-unconfigured" hidden>尚未配置模型。</p>
         <button type="button" id="agent-open-settings" hidden>打开设置</button>
         <button type="button" id="agent-analyze">开始分析</button>
-        <button type="button" id="agent-organize">组织主题</button>
+        <button type="button" id="agent-organize" aria-label="组织主题（侧栏）">组织主题</button>
         <p id="agent-status" role="status"></p>
         <p id="agent-result"></p>
         <p id="agent-usage" role="status"></p>
@@ -241,6 +248,19 @@
           <button type="button" id="settings-close" value="cancel">关闭</button>
         </div>
         <p id="settings-saved" class="probe-status" role="status"></p>
+      </form>
+    </dialog>
+    <dialog id="revision-edit-dialog" aria-labelledby="revision-edit-title">
+      <form id="revision-edit-form">
+        <h2 id="revision-edit-title">编辑修订</h2>
+        <label>
+          修订正文
+          <textarea id="revision-edit-text" name="revision" aria-label="修订正文" rows="6"></textarea>
+        </label>
+        <div class="settings-actions">
+          <button type="submit">采用</button>
+          <button type="button" id="revision-edit-cancel">取消</button>
+        </div>
       </form>
     </dialog>
     <dialog id="note-edit-dialog" aria-labelledby="note-edit-title">

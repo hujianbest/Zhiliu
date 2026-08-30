@@ -252,11 +252,17 @@ ipcMain.handle('agent:revise', async (_event, noteId: string) => {
 ipcMain.handle('agent:acceptRevision', async (_event, id: string) => {
   await workbench.acceptRevision(typeof id === 'string' ? id : '');
   await search.rebuild();
-  await git.commit('更新一条笔记');
+  await git.commit('接受并列修订');
 });
 ipcMain.handle('agent:rejectRevision', async (_event, id: string) => {
   await workbench.rejectRevision(typeof id === 'string' ? id : '');
   await search.rebuild();
+  await git.commit('拒绝并列修订');
+});
+ipcMain.handle('agent:editRevision', async (_event, id: string, text: string) => {
+  await workbench.editRevision(typeof id === 'string' ? id : '', typeof text === 'string' ? text : '');
+  await search.rebuild();
+  await git.commit('编辑并列修订');
 });
 ipcMain.handle('agent:runBackground', async () => {
   const outcome = await workbench.runBackground();
@@ -267,81 +273,93 @@ ipcMain.handle('agent:runBackground', async () => {
 ipcMain.handle('workbench:view', async () => workbench.view());
 ipcMain.handle('workbench:saveBudgets', async (_event, input) => {
   const view = await workbench.saveBudgets(input);
-  await git.commit('更新一条笔记');
+  await git.commit('更新预算');
   return view;
 });
 ipcMain.handle('workbench:savePrivacy', async (_event, input) => {
   const view = await workbench.savePrivacy(input);
-  await git.commit('更新一条笔记');
+  await git.commit('更新隐私设置');
   return view;
 });
 ipcMain.handle('workbench:savePrompt', async (_event, text: string) => {
   const view = await workbench.savePrompt(typeof text === 'string' ? text : '');
-  await git.commit('更新一条笔记');
+  await git.commit('更新提示词');
   return view;
 });
 ipcMain.handle('workbench:resetPrompt', async () => {
   const view = await workbench.resetPrompt();
-  await git.commit('更新一条笔记');
+  await git.commit('恢复默认提示词');
   return view;
 });
 ipcMain.handle('workbench:saveTriggers', async (_event, input) => {
   const view = await workbench.saveTriggers(input);
-  await git.commit('更新一条笔记');
+  await git.commit('更新自动工作');
   return view;
 });
 ipcMain.handle('workbench:captureCrash', async (_event, payload) => workbench.crashReport(payload ?? {}));
 ipcMain.handle('workbench:renameTopic', async (_event, id: string, title: string) => {
   const topic = await workbench.renameTopic(id, title);
-  await git.commit('更新一条笔记');
+  await git.commit('重命名主题');
   return topic;
 });
 ipcMain.handle('workbench:pinTopic', async (_event, id: string, pinned: boolean) => workbench.pinTopic(id, pinned));
 ipcMain.handle('workbench:hideTopic', async (_event, id: string, hidden: boolean) => workbench.hideTopic(id, hidden));
 ipcMain.handle('workbench:mergeTopics', async (_event, fromId: string, intoId: string) => {
   const topics = await workbench.mergeTopics(fromId, intoId);
-  await git.commit('更新一条笔记');
+  await git.commit('合并主题');
   return topics;
 });
 ipcMain.handle('workbench:splitTopic', async (_event, id: string, noteIds: string[]) => {
   const topics = await workbench.splitTopic(id, noteIds);
-  await git.commit('更新一条笔记');
+  await git.commit('拆分主题');
   return topics;
 });
-ipcMain.handle('workbench:createProposal', async (_event, topicId: string) => workbench.createProposal(topicId));
-ipcMain.handle('workbench:confirmEvidence', async (_event, proposalId: string, evidenceId: string) =>
-  workbench.confirmEvidence(proposalId, evidenceId),
-);
-ipcMain.handle('workbench:setThesis', async (_event, proposalId: string, thesis: string) => workbench.setThesis(proposalId, thesis));
-ipcMain.handle('workbench:includeEvidence', async (_event, proposalId: string, evidenceId: string, included: boolean) =>
-  workbench.includeEvidence(proposalId, evidenceId, included),
-);
+ipcMain.handle('workbench:createProposal', async (_event, topicId: string) => {
+  const proposal = await workbench.createProposal(topicId);
+  await git.commit('创建提案');
+  return proposal;
+});
+ipcMain.handle('workbench:confirmEvidence', async (_event, proposalId: string, evidenceId: string) => {
+  const proposal = await workbench.confirmEvidence(proposalId, evidenceId);
+  await git.commit('确认提案证据');
+  return proposal;
+});
+ipcMain.handle('workbench:setThesis', async (_event, proposalId: string, thesis: string) => {
+  const proposal = await workbench.setThesis(proposalId, thesis);
+  await git.commit('确认提案论点');
+  return proposal;
+});
+ipcMain.handle('workbench:includeEvidence', async (_event, proposalId: string, evidenceId: string, included: boolean) => {
+  const proposal = await workbench.includeEvidence(proposalId, evidenceId, included);
+  await git.commit('纳入或排除提案证据');
+  return proposal;
+});
 ipcMain.handle('workbench:createManuscript', async (_event, input) => {
   const draft = await workbench.createManuscript(input);
-  await git.commit('更新一条笔记');
+  await git.commit('保存稿件');
   return draft;
 });
 ipcMain.handle('workbench:saveManuscript', async (_event, input) => {
   const draft = await workbench.saveManuscript(input);
-  await git.commit('更新一条笔记');
+  await git.commit('保存稿件');
   await search.rebuild();
   return draft;
 });
 ipcMain.handle('workbench:finalize', async (_event, id: string) => {
   const draft = await workbench.finalize(id);
-  await git.commit('更新一条笔记');
+  await git.commit('定稿');
   await search.rebuild();
   return draft;
 });
 ipcMain.handle('workbench:unfinalize', async (_event, id: string) => {
   const draft = await workbench.unfinalize(id);
-  await git.commit('更新一条笔记');
+  await git.commit('撤回定稿');
   await search.rebuild();
   return draft;
 });
 ipcMain.handle('workbench:generateFormal', async (_event, proposalId: string) => {
   const draft = await workbench.generateFormal(proposalId);
-  await git.commit('更新一条笔记');
+  await git.commit('生成正式稿');
   return draft;
 });
 ipcMain.handle('workbench:promoteTrial', async (_event, id: string) => workbench.promoteTrial(id));

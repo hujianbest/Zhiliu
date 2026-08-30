@@ -71,15 +71,50 @@ export class AgentRuntime {
     const dir = path.join(root, '.zhiliu', 'traces');
     let names: string[] = [];
     try {
-      names = (await readdir(dir)).filter((name) => name.endsWith('.json')).sort();
+      names = (await readdir(dir)).filter((name) => name.endsWith('.json'));
     } catch {
       return null;
     }
-    const last = names.at(-1);
-    if (!last) {
-      return null;
+    const traces: GenerationTrace[] = [];
+    for (const name of names) {
+      traces.push(JSON.parse(await readFile(path.join(dir, name), 'utf8')) as GenerationTrace);
     }
-    return JSON.parse(await readFile(path.join(dir, last), 'utf8')) as GenerationTrace;
+    traces.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    return traces.at(-1) ?? null;
+  }
+
+  async completeTask(
+    taskType: string,
+    channel: 'interactive' | 'background',
+    promptVersion: string,
+    userContent: string,
+  ): Promise<{ text: string; trace: GenerationTrace }> {
+    const root = this.vault.path;
+    if (!root) {
+      throw new Error('还没有打开知识库');
+    }
+    const endpoint = await this.models.resolve(taskType === 'write' ? 'deep' : 'fast');
+    if (!endpoint) {
+      throw new Error('尚未配置模型。');
+    }
+    const text = await this.complete(endpoint.baseUrl, endpoint.model, endpoint.apiKey, userContent, promptVersion);
+    const trace: GenerationTrace = {
+      id: randomUUID(),
+      taskType,
+      channel,
+      model: endpoint.model,
+      promptVersion,
+      sourceIds: [],
+      timestamp: new Date().toISOString(),
+      usage: {
+        promptTokens: estimateTokens(userContent),
+        completionTokens: estimateTokens(text),
+        estimated: true,
+      },
+      result: text,
+    };
+    await this.writeTrace(root, trace);
+    return { text, trace };
   }
 
   private async selectExcerpts(): Promise<{ id: string; quotation: string; thought: string; sourceId: string | null }[]> {
@@ -110,10 +145,12 @@ export class AgentRuntime {
     baseUrl: string,
     model: string,
     apiKey: string,
-    excerpts: { id: string; quotation: string; thought: string }[],
+    excerpts: { id: string; quotation: string; thought: string }[] | string,
     promptVersion: string,
   ): Promise<string> {
     const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+    const userContent =
+      typeof excerpts === 'string' ? excerpts : `请根据这些摘录做一次分析，不要编造库外事实。\n${JSON.stringify(excerpts)}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -124,10 +161,7 @@ export class AgentRuntime {
         model,
         messages: [
           { role: 'system', content: `zhiliu prompt ${promptVersion}` },
-          {
-            role: 'user',
-            content: `请根据这些摘录做一次分析，不要编造库外事实。\n${JSON.stringify(excerpts)}`,
-          },
+          { role: 'user', content: userContent },
         ],
       }),
       signal: AbortSignal.timeout(20_000),

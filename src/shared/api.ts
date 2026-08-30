@@ -13,7 +13,7 @@ export type AtomicNote = {
   created: string;
   updated: string;
   provenance: {
-    quotation: 'source';
+    quotation: 'source' | 'ai';
     thought: 'user';
   };
   relations: NoteRelation[];
@@ -29,6 +29,7 @@ export type SaveNoteInput = {
   relations?: NoteRelation[];
   baseQuotation?: string;
   baseThought?: string;
+  provenance?: AtomicNote['provenance'];
 };
 
 export type VaultStatus = {
@@ -233,6 +234,7 @@ export type ParallelRevision = {
   path: string;
   text: string;
   provenance: 'ai';
+  accepted?: boolean;
 };
 
 export type ManuscriptSpan = {
@@ -349,6 +351,7 @@ export type ZhiliuApi = {
     revise(noteId: string): Promise<ParallelRevision>;
     acceptRevision(id: string): Promise<void>;
     rejectRevision(id: string): Promise<void>;
+    editRevision(id: string, text: string): Promise<void>;
     runBackground(): Promise<{ status: string }>;
   };
   workbench: {
@@ -374,7 +377,7 @@ export type ZhiliuApi = {
     unfinalize(id: string): Promise<ManuscriptView>;
     generateFormal(proposalId: string): Promise<ManuscriptView>;
     promoteTrial(id: string): Promise<ProposalView>;
-    exportManuscript(id: string, options?: { footnotes?: boolean }): Promise<{ markdown: string; text: string; html: string }>;
+    exportManuscript(id: string, options?: { footnotes?: boolean; citations?: Record<string, string> }): Promise<{ markdown: string; text: string; html: string }>;
     promoteChat(turnId: string, paragraphIndex: number, thought: string): Promise<AtomicNote>;
     saveStyle(text: string): Promise<StyleProfileView>;
     resetStyle(): Promise<StyleProfileView>;

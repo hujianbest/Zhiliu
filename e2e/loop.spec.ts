@@ -122,6 +122,7 @@ test('固定主题在重跑后保留；证据增减会双向改来源', async ()
 test('对话默认不进检索，提炼后命中；稿件归属可无颜色区分', async () => {
   const session = await launchZhiliu();
   try {
+    await configureModels(session.window, session.fakeOpenAI.baseUrl);
     await session.window.evaluate(async () => {
       await window.zhiliu.notes.save({ quotation: '依据。', thought: '对话提炼探针种子。' });
       const turn = await window.zhiliu.agent.chat('对话提炼探针种子');
@@ -165,6 +166,7 @@ test('对话默认不进检索，提炼后命中；稿件归属可无颜色区�
 test('提案确认次数等于操作次数；就绪后生成正式稿；删除笔记后引用失效', async () => {
   const session = await launchZhiliu();
   try {
+    await configureModels(session.window, session.fakeOpenAI.baseUrl);
     const notes = await session.window.evaluate(async () => {
       const created = [];
       created.push(await window.zhiliu.notes.save({ quotation: '一', thought: '青瓷提案甲。' }));
@@ -183,6 +185,11 @@ test('提案确认次数等于操作次数；就绪后生成正式稿；删除�
       const topic = view.topics[0];
       return window.zhiliu.workbench.createProposal(topic!.id);
     });
+    await session.window.getByRole('button', { name: '创作' }).click();
+    await expect(session.window.getByLabel('提案论点')).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '确认论点' })).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '排除' }).first()).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '纳入' }).first()).toBeVisible();
     await session.window.evaluate(async (id) => window.zhiliu.workbench.setThesis(id, '确认后的论点。'), proposal.id);
     const thoughtEvidence = proposal.evidence.filter((item) => item.kind === 'thought');
     for (const item of thoughtEvidence) {
@@ -199,7 +206,8 @@ test('提案确认次数等于操作次数；就绪后生成正式稿；删除�
     expect(ready?.ready).toBeTruthy();
     const draft = await session.window.evaluate(async (id) => window.zhiliu.workbench.generateFormal(id), proposal.id);
     expect(draft.kind).toBe('formal');
-    expect(draft.spans.every((span) => thoughtEvidence.some((item) => item.text === span.text) || span.text === '确认后的论点。')).toBeTruthy();
+    expect(thoughtEvidence.every((item) => draft.spans.some((span) => span.text === item.text))).toBeTruthy();
+    expect(draft.spans.some((span) => span.text === '确认后的论点。')).toBeTruthy();
     const cited = draft.spans.find((span) => span.noteId)?.noteId;
     if (cited) {
       await writeFile(
@@ -248,7 +256,10 @@ test('导出可关脚注且不含凭据；试写稿转正产生新正式稿；�
     expect(learned).toBeTruthy();
     const unchanged = await session.window.evaluate(async () => window.zhiliu.workbench.view());
     expect(unchanged.style.text).toBe(before.style.text);
-    await session.window.evaluate(async (id) => window.zhiliu.workbench.confirmStyleProposal(id), learned!.id);
+    expect(unchanged.styleProposals[0]?.evidence).toBeTruthy();
+    await session.window.getByRole('button', { name: '创作' }).click();
+    await expect(session.window.getByRole('list', { name: '风格更新提案' })).toContainText('依据');
+    await session.window.getByRole('button', { name: '确认样本' }).click();
     const after = await session.window.evaluate(async () => window.zhiliu.workbench.view());
     expect(after.style.text).toContain('原风格');
     expect(after.style.version).toBeGreaterThan(before.style.version);
@@ -287,6 +298,15 @@ test('断网时阅读捕获检索编辑写作可用，AI 以可恢复错误结�
       }
     });
     expect(failed).not.toBe('ok');
+    const chatFailed = await session.window.evaluate(async () => {
+      try {
+        await window.zhiliu.agent.chat('离线提问');
+        return 'ok';
+      } catch (error) {
+        return error instanceof Error ? error.message : '失败';
+      }
+    });
+    expect(chatFailed).not.toBe('ok');
     const hits = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), '离线也能记下');
     expect(hits.some((hit) => hit.snippet.includes('离线也能记下'))).toBeTruthy();
   } finally {
@@ -304,7 +324,7 @@ test('完整闭环：三份合计超过 1MB 的来源走到干净导出', async 
     '/b': `<html><body><article><h1>乙卷</h1><p>${chunk} 来源乙独特句。</p></article></body></html>`,
     '/c': `<html><body><article><h1>丙卷</h1><p>${chunk} 来源丙独特句。</p></article></body></html>`,
   });
-  const session = await launchZhiliu();
+  const session = await launchZhiliu({ chooseFiles: [fireside] });
   try {
     await configureModels(session.window, session.fakeOpenAI.baseUrl);
     const t0 = Date.now();
@@ -313,21 +333,50 @@ test('完整闭环：三份合计超过 1MB 的来源走到干净导出', async 
     }
     blocked += Date.now() - t0;
     expect(chunk.length * 3).toBeGreaterThan(1_000_000);
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
+    await session.window.getByRole('button', { name: '炉边小札' }).click();
+    const reader = session.window.frameLocator('iframe[title="正文"]');
+    await expect(reader.getByText(firesideSentence)).toBeVisible();
+    await reader.getByText(firesideSentence).selectText();
+    await session.window.getByRole('button', { name: '记下这段' }).click();
+    const capture = session.window.getByRole('dialog', { name: '记下这段' });
+    await capture.getByLabel('想法').fill('闭环阅读捕获。');
+    await capture.getByRole('button', { name: '保存' }).click();
     await session.window.evaluate(async () => {
       const sources = await window.zhiliu.library.list();
-      await window.zhiliu.notes.save({ quotation: '来源甲独特句。', thought: '闭环思想一。', sourceId: sources[0]?.id });
-      await window.zhiliu.notes.save({ quotation: '来源乙独特句。', thought: '闭环思想二。', sourceId: sources[1]?.id });
-      await window.zhiliu.notes.save({ quotation: '来源丙独特句。', thought: '闭环思想三。', sourceId: sources[2]?.id });
-      const topics = await window.zhiliu.agent.organize();
-      const proposal = await window.zhiliu.workbench.createProposal(topics[0]!.id);
-      await window.zhiliu.workbench.setThesis(proposal.id, '闭环论点。');
-      for (const item of proposal.evidence.filter((entry) => entry.kind === 'thought')) {
-        await window.zhiliu.workbench.confirmEvidence(proposal.id, item.id);
-      }
-      const draft = await window.zhiliu.workbench.generateFormal(proposal.id);
-      await window.zhiliu.workbench.finalize(draft.id);
-      return window.zhiliu.workbench.exportManuscript(draft.id, { footnotes: true });
+      const webSources = sources.filter((item) => item.kind === 'web');
+      await window.zhiliu.notes.save({ quotation: '来源甲独特句。', thought: '闭环思想一。', sourceId: webSources[0]?.id });
+      await window.zhiliu.notes.save({ quotation: '来源乙独特句。', thought: '闭环思想二。', sourceId: webSources[1]?.id });
+      await window.zhiliu.notes.save({ quotation: '来源丙独特句。', thought: '闭环思想三。', sourceId: webSources[2]?.id });
     });
+    await session.window.getByRole('button', { name: '创作' }).click();
+    await session.window.getByRole('button', { name: '组织主题（创作区）' }).click();
+    await expect(session.window.getByRole('list', { name: '主题' }).getByText('思想线索').first()).toBeVisible();
+    await session.window
+      .getByRole('list', { name: '主题' })
+      .locator('li')
+      .filter({ hasText: '思想线索' })
+      .getByRole('button', { name: '生成提案' })
+      .click();
+    await session.window.getByLabel('提案论点').fill('闭环论点。');
+    await session.window.getByRole('button', { name: '确认论点' }).click();
+    const thoughtConfirms = session.window.getByRole('button', { name: /^确认：闭环思想/ });
+    await expect(thoughtConfirms).toHaveCount(3);
+    for (let i = 0; i < 3; i += 1) {
+      await thoughtConfirms.first().click();
+    }
+    await expect(session.window.getByRole('button', { name: '生成正式稿' })).toBeEnabled();
+    await session.window.getByRole('button', { name: '生成正式稿' }).click();
+    await expect
+      .poll(async () => session.window.getByRole('list', { name: '稿件' }).getByRole('button').filter({ hasText: '正式' }).count(), {
+        timeout: 30_000,
+      })
+      .toBeGreaterThan(0);
+    await session.window.getByRole('list', { name: '稿件' }).getByRole('button').filter({ hasText: '正式' }).first().click();
+    await expect(session.window.getByLabel('来源归属').getByText('用户', { exact: true })).toBeVisible();
+    await session.window.getByRole('button', { name: '定稿', exact: true }).click();
+    await session.window.getByRole('button', { name: '导出 Markdown' }).click();
+    await expect(session.window.getByText('## 来源')).toBeVisible();
     const exported = await session.window.evaluate(async () => {
       const view = await window.zhiliu.workbench.view();
       const draft = view.manuscripts.find((item) => item.status === 'final');

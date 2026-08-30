@@ -1,10 +1,17 @@
 import { expect, test } from '@playwright/test';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { launchZhiliu } from './helpers/launch.js';
+
+const fixtures = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'fixtures');
+const fireside = path.join(fixtures, 'fireside-notes.epub');
+const firesideSentence = '这是一本用于端到端测试的小书。';
 
 const KEYBOARD_PATH_LIMITS = {
   openSearch: 1,
   openSettings: 1,
   openCreation: 1,
+  importReadCapture: 8,
   exportVisible: 12,
   tabCycle: 80,
 };
@@ -12,8 +19,22 @@ const KEYBOARD_PATH_LIMITS = {
 test.describe.configure({ mode: 'serial' });
 
 test('核心流程可键盘走通，焦点不落回 body，快捷键可见', async () => {
-  const session = await launchZhiliu();
+  const session = await launchZhiliu({ chooseFiles: [fireside] });
   try {
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).focus();
+    await session.window.keyboard.press('Enter');
+    await session.window.getByRole('button', { name: '炉边小札' }).focus();
+    await session.window.keyboard.press('Enter');
+    const body = session.window.frameLocator('iframe[title="正文"]');
+    await expect(body.getByText(firesideSentence)).toBeVisible();
+    await body.getByText(firesideSentence).selectText();
+    await session.window.keyboard.press('Control+M');
+    const capture = session.window.getByRole('dialog', { name: '记下这段' });
+    await expect(capture).toBeVisible();
+    await capture.getByLabel('想法').fill('键盘路径记下的想法。');
+    await capture.getByRole('button', { name: '保存' }).click();
+    expect(KEYBOARD_PATH_LIMITS.importReadCapture).toBeLessThanOrEqual(8);
+
     await session.window.keyboard.press('Control+K');
     await expect(session.window.getByRole('dialog', { name: '检索' })).toBeVisible();
     expect(KEYBOARD_PATH_LIMITS.openSearch).toBeLessThanOrEqual(1);

@@ -124,7 +124,7 @@ export class Vault {
       thought,
       created: now,
       updated: now,
-      provenance: { quotation: 'source', thought: 'user' },
+      provenance: input.provenance ?? { quotation: 'source', thought: 'user' },
       relations: input.relations ?? [],
       path: '',
     };

@@ -29,6 +29,7 @@ type State = {
   usage: WorkbenchView['usage'];
   usageDay: string;
   usageMonth: string;
+  usageMonthly: { interactive: { tokens: number; requests: number }; background: { tokens: number; requests: number } };
   privacy: { telemetry: boolean; crashReports: boolean };
   promptOverride: string | null;
   triggers: { enabled: boolean; onNewNotes: boolean; lastRun: string | null; status: string };
@@ -65,6 +66,10 @@ function emptyState(): State {
     },
     usageDay: dayKey(),
     usageMonth: monthKey(),
+    usageMonthly: {
+      interactive: { tokens: 0, requests: 0 },
+      background: { tokens: 0, requests: 0 },
+    },
     privacy: { telemetry: false, crashReports: false },
     promptOverride: null,
     triggers: { enabled: false, onNewNotes: false, lastRun: null, status: '已关闭' },
@@ -131,6 +136,9 @@ export class Workbench {
     bucket.tokens += trace.usage.promptTokens + trace.usage.completionTokens;
     bucket.requests += 1;
     bucket.estimated = trace.usage.estimated;
+    const monthly = (state.usageMonthly ??= { interactive: { tokens: 0, requests: 0 }, background: { tokens: 0, requests: 0 } });
+    monthly[trace.channel].tokens += trace.usage.promptTokens + trace.usage.completionTokens;
+    monthly[trace.channel].requests += 1;
     this.recomputePause(state);
     await this.write(state);
   }
@@ -303,6 +311,10 @@ export class Workbench {
   async chat(question: string): Promise<ChatTurn> {
     const hits = await this.search.queryDetailed(question, { mode: 'mix' });
     const grounded = hits.hits.filter((hit) => hit.provenance !== 'user').slice(0, 3);
+    const view = await this.view();
+    const asked = `请根据这些摘录做一次分析，回答用户的问题：${question}\n${JSON.stringify(grounded.map((hit) => hit.snippet))}`;
+    const { text, trace } = await this.agent.completeTask('chat', 'interactive', view.prompt.version, asked);
+    await this.record(trace);
     const paragraphs = [
       ...grounded.map((hit) => ({
         text: hit.snippet,
@@ -312,7 +324,7 @@ export class Workbench {
         sourcePosition: hit.sourcePosition,
       })),
       {
-        text: `模型补充：结合库外常识，${question}还可以从对照阅读里继续想。`,
+        text,
         provenance: 'ai' as const,
       },
     ];
@@ -342,8 +354,12 @@ export class Workbench {
     return this.vault.saveNote({
       quotation: paragraph.text,
       thought,
-      sourceId: paragraph.sourceId,
-      sourcePosition: paragraph.sourcePosition,
+      sourceId: paragraph.provenance === 'source' ? paragraph.sourceId : undefined,
+      sourcePosition: paragraph.provenance === 'source' ? paragraph.sourcePosition : undefined,
+      provenance: {
+        quotation: paragraph.provenance === 'ai' ? 'ai' : 'source',
+        thought: 'user',
+      },
     });
   }
 
@@ -359,18 +375,7 @@ export class Workbench {
       text: `${note.thought}（AI 并列修订）`,
       provenance: 'ai',
     };
-    await writeFile(
-      revision.path,
-      `---
-id: ${revision.id}
-note_id: ${noteId}
-kind: revision
-provenance: ai
----
-${revision.text}
-`,
-      'utf8',
-    );
+    await this.writeRevisionFile(revision);
     const state = await this.read();
     state.revisions.push(revision);
     await this.write(state);
@@ -383,18 +388,19 @@ ${revision.text}
     if (!revision) {
       return;
     }
-    const note = await this.vault.getNote(revision.noteId);
-    if (note) {
-      await this.vault.saveNote({
-        id: note.id,
-        quotation: note.quotation,
-        thought: `${note.thought}\n\n已采纳的 AI 修订：${revision.text}`,
-        baseQuotation: note.quotation,
-        baseThought: note.thought,
-      });
+    revision.accepted = true;
+    await this.writeRevisionFile(revision);
+    await this.write(state);
+  }
+
+  async editRevision(id: string, text: string): Promise<void> {
+    const state = await this.read();
+    const revision = state.revisions.find((item) => item.id === id);
+    if (!revision) {
+      throw new Error('找不到这条修订');
     }
-    await unlink(revision.path).catch(() => undefined);
-    state.revisions = state.revisions.filter((item) => item.id !== id);
+    revision.text = text;
+    await this.writeRevisionFile(revision);
     await this.write(state);
   }
 
@@ -551,7 +557,15 @@ ${revision.text}
       };
     });
     spans.push({ text: proposal.thesis, provenance: 'user' });
+    if (state.style.text.trim()) {
+      spans.push({ text: `风格档案（可见影响）：${state.style.text.trim()}`, provenance: 'ai' });
+    }
+    const prompt = `请根据这些摘录做一次分析，写成正式稿。论点：${proposal.thesis}。风格：${state.style.text}。证据：${included.map((item) => item.text).join(' / ')}`;
+    const { text, trace } = await this.agent.completeTask('write', 'interactive', this.promptVersion(state), prompt);
+    await this.record(trace);
+    spans.push({ text, provenance: 'ai' });
     const body = spans.map((span) => span.text).join('\n\n');
+    const trial = (await this.listManuscripts()).find((item) => item.kind === 'trial' && item.topicId === proposal.topicId);
     return this.writeManuscript({
       kind: 'formal',
       status: 'draft',
@@ -559,6 +573,7 @@ ${revision.text}
       body,
       topicId: proposal.topicId,
       proposalId: proposal.id,
+      trialId: trial?.id,
       spans,
     });
   }
@@ -578,7 +593,10 @@ ${revision.text}
     return this.withReady(stored);
   }
 
-  async exportManuscript(id: string, options?: { footnotes?: boolean }): Promise<{ markdown: string; text: string; html: string }> {
+  async exportManuscript(
+    id: string,
+    options?: { footnotes?: boolean; citations?: Record<string, string> },
+  ): Promise<{ markdown: string; text: string; html: string }> {
     const draft = await this.getManuscript(id);
     if (!draft) {
       throw new Error('找不到这份稿件');
@@ -591,7 +609,8 @@ ${revision.text}
       markdown += `\n\n## 来源\n${sourceIds
         .map((sourceId, index) => {
           const source = catalog.find((item) => item.id === sourceId);
-          return `${index + 1}. ${source?.title ?? sourceId}`;
+          const label = options?.citations?.[sourceId] || source?.title || sourceId;
+          return `${index + 1}. ${label}`;
         })
         .join('\n')}\n`;
     }
@@ -629,10 +648,18 @@ ${revision.text}
     if (!draft || draft.kind !== 'formal' || draft.status !== 'final') {
       return null;
     }
+    const aiDraft = draft.spans
+      .filter((span) => span.provenance === 'ai')
+      .map((span) => span.text)
+      .join('\n');
+    const evidence =
+      aiDraft && aiDraft !== draft.body
+        ? `定稿相对 AI 草稿的差异：\nAI：${aiDraft.slice(0, 120)}\n终稿：${draft.body.slice(0, 120)}`
+        : `样本：${draft.body.slice(0, 80)}`;
     const proposal: StyleProposalView = {
       id: randomUUID(),
       text: `更贴近这篇定稿的句子节奏：${draft.body.slice(0, 80)}`,
-      evidence: draft.id,
+      evidence,
       manuscriptId,
     };
     const state = await this.read();
@@ -686,6 +713,7 @@ ${revision.text}
     } catch {
       const latest = await this.read();
       latest.triggers.status = '模型不可用，已暂停';
+      latest.usage.paused = true;
       await this.write(latest);
       return { status: '模型不可用，已暂停' };
     }
@@ -804,18 +832,35 @@ ${revision.text}
     return (await this.listManuscripts()).find((item) => item.id === id) ?? null;
   }
 
+  private async writeRevisionFile(revision: ParallelRevision): Promise<void> {
+    await writeFile(
+      revision.path,
+      `---
+id: ${revision.id}
+note_id: ${revision.noteId}
+kind: revision
+provenance: ai
+accepted: ${revision.accepted ? 'true' : 'false'}
+---
+${revision.text}
+`,
+      'utf8',
+    );
+  }
+
   private async ensureTopicForTrial(trial: ManuscriptView): Promise<string> {
     const state = await this.read();
     const created: TopicView = {
       id: randomUUID(),
       title: trial.title || '试写稿主题',
-      origin: 'thought-signal',
+      origin: 'library-discovery',
       noteIds: [],
       sourceIds: [],
       pinned: false,
       hidden: false,
     };
     state.topics.push(created);
+    await this.refreshOrigins(state);
     await this.write(state);
     return created.id;
   }
@@ -914,17 +959,21 @@ ${revision.text}
   }
 
   private recomputePause(state: State): void {
+    const monthly = state.usageMonthly ?? { interactive: { tokens: 0, requests: 0 }, background: { tokens: 0, requests: 0 } };
     const over =
       state.usage.background.tokens >= state.budgets.dailyTokens ||
-      state.usage.background.tokens >= state.budgets.monthlyTokens ||
+      monthly.background.tokens >= state.budgets.monthlyTokens ||
       state.usage.background.requests >= state.budgets.dailyRequests ||
-      state.usage.background.requests >= state.budgets.monthlyRequests;
+      monthly.background.requests >= state.budgets.monthlyRequests;
     state.usage.paused = over;
   }
 
   private rollUsageWindow(state?: State): void {
     if (!state) {
       return;
+    }
+    if (!state.usageMonthly) {
+      state.usageMonthly = { interactive: { tokens: 0, requests: 0 }, background: { tokens: 0, requests: 0 } };
     }
     if (state.usageDay !== dayKey()) {
       state.usage.background = { tokens: 0, requests: 0, estimated: true };
@@ -933,6 +982,7 @@ ${revision.text}
       state.usageDay = dayKey();
     }
     if (state.usageMonth !== monthKey()) {
+      state.usageMonthly = { interactive: { tokens: 0, requests: 0 }, background: { tokens: 0, requests: 0 } };
       state.usageMonth = monthKey();
     }
   }

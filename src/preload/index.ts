@@ -41,6 +41,7 @@ const api: ZhiliuApi = {
     revise: (noteId) => ipcRenderer.invoke('agent:revise', noteId),
     acceptRevision: (id) => ipcRenderer.invoke('agent:acceptRevision', id),
     rejectRevision: (id) => ipcRenderer.invoke('agent:rejectRevision', id),
+    editRevision: (id, text) => ipcRenderer.invoke('agent:editRevision', id, text),
     runBackground: () => ipcRenderer.invoke('agent:runBackground'),
   },
   models: {

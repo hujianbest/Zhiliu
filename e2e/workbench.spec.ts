@@ -86,6 +86,7 @@ test('跨来源聚类产生主题，未读状态不变，组织操作为一次�
 test('知识库对话分段带来源或 AI 归属，部分索引会明示', async () => {
   const session = await launchZhiliu();
   try {
+    await configureModels(session.window, session.fakeOpenAI.baseUrl);
     await session.window.evaluate(async () => {
       await window.zhiliu.notes.save({ quotation: '青瓷对话探针。' });
       await window.zhiliu.notes.save({ quotation: '炉火旁的证据。', thought: '另外的想法。' });
@@ -113,7 +114,8 @@ test('手工正式稿预览、定稿才进检索、撤回后不再命中', async
     await session.window.getByRole('button', { name: '创作' }).click();
     await session.window.getByRole('button', { name: '新建正式稿' }).click();
     await session.window.getByLabel('稿件标题').fill('一篇正式稿');
-    await session.window.getByLabel('稿件正文').fill(unique);
+    await session.window.getByLabel('稿件正文').fill(`# 预览标题\n\n${unique}`);
+    await expect(session.window.getByLabel('预览').locator('h1')).toHaveText('预览标题');
     await expect(session.window.getByLabel('预览')).toContainText(unique);
     await session.window.getByRole('button', { name: '保存稿件' }).click();
     await expect.poll(async () => {
@@ -200,6 +202,11 @@ test('并列修订不改原文，检索顺序为用户、来源、AI', async () 
       return found;
     }, note.id);
     await session.window.evaluate(async (id) => window.zhiliu.agent.revise(id), note.id);
+    await session.window.getByRole('button', { name: '思想', exact: true }).click();
+    await expect(session.window.getByRole('list', { name: '并列修订' })).toContainText('待处理');
+    await expect(session.window.getByRole('button', { name: '接受' })).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '拒绝' })).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '编辑后采用' })).toBeVisible();
     const after = await session.window.evaluate(async (id) => window.zhiliu.notes.get(id), note.id);
     expect(after?.thought).toBe(original?.thought);
     const hits = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), word);
