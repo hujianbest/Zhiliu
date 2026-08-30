@@ -9,6 +9,7 @@ const api: ZhiliuApi = {
   notes: {
     save: (input: SaveNoteInput) => ipcRenderer.invoke('notes:save', input),
     get: (id: string) => ipcRenderer.invoke('notes:get', id),
+    listForSource: (sourceId) => ipcRenderer.invoke('notes:listForSource', sourceId),
   },
   models: {
     view: () => ipcRenderer.invoke('models:view'),

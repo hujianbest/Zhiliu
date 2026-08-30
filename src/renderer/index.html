@@ -45,13 +45,24 @@
             </div>
             <p id="reader-chapter" class="reader-chapter"></p>
             <p id="reader-status" class="reader-status"></p>
-            <iframe id="reader-frame" title="正文" sandbox="allow-same-origin"></iframe>
-            <nav class="reader-nav" aria-label="章节">
+            <p id="capture-hint" role="status" hidden></p>
+            <div class="reader-body">
+              <iframe id="reader-frame" title="正文" sandbox="allow-same-origin"></iframe>
+              <section id="reader-notes" aria-labelledby="reader-notes-title">
+                <h2 id="reader-notes-title">本书笔记</h2>
+                <p id="reader-notes-empty">还没有笔记。选中正文后点「记下这段」。</p>
+                <ul id="reader-notes-list" aria-label="本书笔记"></ul>
+              </section>
+            </div>
+            <nav class="reader-nav" aria-label="阅读">
               <button type="button" id="reader-toc" title="目录（T）" aria-keyshortcuts="T">目录</button>
               <button type="button" id="reader-prev" title="上一章（←）" aria-keyshortcuts="ArrowLeft">上一章</button>
               <button type="button" id="reader-next" title="下一章（→）" aria-keyshortcuts="ArrowRight">下一章</button>
               <button type="button" id="reader-read-flag" title="标记已读（Shift+R）" aria-keyshortcuts="Shift+R">
                 标记已读
+              </button>
+              <button type="button" id="reader-capture" title="记下这段（Ctrl+M）" aria-keyshortcuts="Control+M Meta+M">
+                记下这段
               </button>
             </nav>
           </div>
@@ -112,6 +123,20 @@
         <ul id="toc-list"></ul>
       </nav>
       <button type="button" id="toc-close">关闭</button>
+    </dialog>
+    <dialog id="capture-dialog" aria-labelledby="capture-title">
+      <form id="capture-form">
+        <h2 id="capture-title">记下这段</h2>
+        <blockquote id="capture-quotation"></blockquote>
+        <label>
+          想法
+          <textarea id="capture-thought" name="thought" aria-label="想法" rows="4"></textarea>
+        </label>
+        <div class="settings-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="capture-cancel">取消</button>
+        </div>
+      </form>
     </dialog>
     <script src="./main.js"></script>
   </body>

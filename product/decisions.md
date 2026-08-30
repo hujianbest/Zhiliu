@@ -6,3 +6,4 @@
 - D-4 2026-08-30 书库目录在 `.zhiliu/library.json`；EPUB 二进制以稳定 id 放入 `sources/` 且被知识库 `.gitignore` 排除 — 依据: 票 04 与 ADR-0004。
 - D-5 2026-08-30 主进程按 OPF spine 抽出章节、净化后交给无 `allow-scripts` 的 iframe 阅读 — 依据: 票 05 与 ADR-0005。
 - D-6 2026-08-30 每本书的阅读位置与已读标记存在知识库 `.zhiliu/reading.json`；阅读器是否打开记在 userData `openSourceId`；目录来自 EPUB nav — 依据: 票 06 与 ADR-0006。
+- D-7 2026-08-30 EPUB 划选位置记为 `epub:<spineIndex>:<startOffset>:<endOffset>`；捕获不离开阅读界面 — 依据: 票 07 与 ADR-0007。

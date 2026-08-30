@@ -143,6 +143,7 @@ export class Reading {
       hasNext: session.index < session.chapters.length - 1,
       toc: session.toc,
       status: session.status,
+      spineIndex: session.index,
     };
   }
 

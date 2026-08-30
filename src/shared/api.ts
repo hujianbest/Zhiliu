@@ -106,6 +106,7 @@ export type ReadingView = {
   hasNext: boolean;
   toc: TocEntry[];
   status: ReadingStatus;
+  spineIndex: number;
 };
 
 export type ZhiliuApi = {
@@ -116,6 +117,7 @@ export type ZhiliuApi = {
   notes: {
     save(input: SaveNoteInput): Promise<AtomicNote>;
     get(id: string): Promise<AtomicNote | null>;
+    listForSource(sourceId: string): Promise<AtomicNote[]>;
   };
   models: {
     view(): Promise<ModelSettingsView>;

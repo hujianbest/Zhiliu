@@ -69,6 +69,7 @@ ipcMain.handle('vault:choose', async () => {
 
 ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => vault.saveNote(input));
 ipcMain.handle('notes:get', async (_event, id: string) => vault.getNote(id));
+ipcMain.handle('notes:listForSource', async (_event, sourceId: string) => vault.listNotesForSource(sourceId));
 ipcMain.handle('models:view', async () => models.view());
 ipcMain.handle('models:save', async (_event, input: SaveModelSettingsInput) => models.save(input));
 ipcMain.handle(

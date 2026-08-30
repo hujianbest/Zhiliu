@@ -1,4 +1,4 @@
-import type { ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SourceDocument, TocEntry } from '../shared/api';
+import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SourceDocument, TocEntry } from '../shared/api';
 
 const spaces = ['library', 'thoughts', 'creation'] as const;
 type Space = (typeof spaces)[number];
@@ -24,6 +24,24 @@ const readingCopy: Record<ReadingStatus, string> = {
 
 let currentSourceId: string | null = null;
 let currentStatus: ReadingStatus = 'unread';
+let currentSpineIndex = 0;
+let lastSelection: CaptureRange | null = null;
+let captureDraft: CaptureDraft | null = null;
+let pendingHighlight: HighlightTarget | null = null;
+let sourceNotes: AtomicNote[] = [];
+
+type CaptureRange = {
+  quotation: string;
+  start: number;
+  end: number;
+};
+
+type CaptureDraft = CaptureRange & {
+  sourceId: string;
+  spineIndex: number;
+};
+
+type HighlightTarget = CaptureRange;
 
 function isSpace(value: string | null): value is Space {
   return value === 'library' || value === 'thoughts' || value === 'creation';
@@ -185,6 +203,10 @@ body {
 h1, h2, h3 { font-weight: 600; letter-spacing: 0.02em; }
 p { margin: 0 0 1em; }
 img { max-width: 100%; height: auto; }
+mark[data-zhiliu-highlight] {
+  background: #e8d9b8; /* --color-mark */
+  color: inherit;
+}
 `;
 
 function readerDocument(html: string): string {
@@ -208,7 +230,7 @@ function onReaderKey(event: KeyboardEvent): void {
   if (!isReading() || event.altKey || event.ctrlKey || event.metaKey) {
     return;
   }
-  if (settingsDialog().open || isTextEntry(event)) {
+  if (settingsDialog().open || captureDialog().open || isTextEntry(event)) {
     return;
   }
   if (event.shiftKey && (event.key === 'R' || event.key === 'r')) {
@@ -240,6 +262,251 @@ function bindFrameKeys(frame: HTMLIFrameElement): void {
     return;
   }
   doc.addEventListener('keydown', onReaderKey);
+  doc.addEventListener('keydown', onCaptureShortcut);
+  doc.addEventListener('selectionchange', () => {
+    const range = readSelection(doc);
+    if (range) {
+      lastSelection = range;
+    }
+  });
+}
+
+function captureDialog(): HTMLDialogElement {
+  return document.getElementById('capture-dialog') as HTMLDialogElement;
+}
+
+function captureThought(): HTMLTextAreaElement {
+  return document.getElementById('capture-thought') as HTMLTextAreaElement;
+}
+
+function onCaptureShortcut(event: KeyboardEvent): void {
+  if (!isReading() || event.altKey || event.shiftKey) {
+    return;
+  }
+  if (!(event.ctrlKey || event.metaKey)) {
+    return;
+  }
+  if (event.key !== 'm' && event.key !== 'M') {
+    return;
+  }
+  event.preventDefault();
+  beginCapture();
+}
+
+function prefixLength(doc: Document, container: Node, offset: number): number {
+  const pre = doc.createRange();
+  pre.selectNodeContents(doc.body);
+  try {
+    pre.setEnd(container, offset);
+  } catch {
+    return -1;
+  }
+  return pre.toString().length;
+}
+
+function readSelection(doc: Document): CaptureRange | null {
+  const sel = doc.getSelection();
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+    return null;
+  }
+  const quotation = sel.toString();
+  if (quotation.trim() === '') {
+    return null;
+  }
+  const range = sel.getRangeAt(0);
+  const start = prefixLength(doc, range.startContainer, range.startOffset);
+  const end = prefixLength(doc, range.endContainer, range.endOffset);
+  if (start < 0 || end <= start) {
+    return null;
+  }
+  return { quotation, start, end };
+}
+
+function currentCaptureRange(): CaptureRange | null {
+  const doc = readerFrame()?.contentDocument;
+  if (doc) {
+    const live = readSelection(doc);
+    if (live) {
+      return live;
+    }
+  }
+  return lastSelection;
+}
+
+function showCaptureHint(message: string): void {
+  const hint = document.getElementById('capture-hint');
+  if (!hint) {
+    return;
+  }
+  hint.textContent = message;
+  hint.hidden = message === '';
+}
+
+function beginCapture(): void {
+  if (!isReading() || !currentSourceId || captureDialog().open || settingsDialog().open || tocDialog().open) {
+    return;
+  }
+  const range = currentCaptureRange();
+  if (!range) {
+    showCaptureHint('请先选中要记下的文字。');
+    return;
+  }
+  showCaptureHint('');
+  captureDraft = { ...range, sourceId: currentSourceId, spineIndex: currentSpineIndex };
+  const quotation = document.getElementById('capture-quotation');
+  if (quotation) {
+    quotation.textContent = range.quotation;
+  }
+  captureThought().value = '';
+  captureDialog().showModal();
+  captureThought().focus();
+}
+
+function formatSourcePosition(spineIndex: number, start: number, end: number): string {
+  return `epub:${spineIndex}:${start}:${end}`;
+}
+
+function parseSourcePosition(value: string | null): { spineIndex: number; start: number; end: number } | null {
+  if (!value) {
+    return null;
+  }
+  const match = /^epub:(\d+):(\d+):(\d+)$/.exec(value);
+  if (!match) {
+    return null;
+  }
+  return { spineIndex: Number(match[1]), start: Number(match[2]), end: Number(match[3]) };
+}
+
+async function saveCapture(): Promise<void> {
+  if (!captureDraft) {
+    return;
+  }
+  const draft = captureDraft;
+  await window.zhiliu.notes.save({
+    quotation: draft.quotation,
+    thought: captureThought().value,
+    sourceId: draft.sourceId,
+    sourcePosition: formatSourcePosition(draft.spineIndex, draft.start, draft.end),
+  });
+  captureDraft = null;
+  captureDialog().close();
+  await refreshSourceNotes(draft.sourceId);
+}
+
+function renderSourceNotes(notes: AtomicNote[]): void {
+  sourceNotes = notes;
+  const list = document.getElementById('reader-notes-list');
+  const empty = document.getElementById('reader-notes-empty');
+  if (!list || !empty) {
+    return;
+  }
+  list.replaceChildren();
+  empty.hidden = notes.length > 0;
+  for (const note of notes) {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.noteId = note.id;
+    const quote = document.createElement('p');
+    quote.className = 'source-note-quote';
+    quote.textContent = note.quotation;
+    const thought = document.createElement('p');
+    thought.className = 'source-note-thought';
+    thought.textContent = note.thought.trim() === '' ? '（无）' : note.thought;
+    button.append(quote, thought);
+    item.append(button);
+    list.append(item);
+  }
+}
+
+async function refreshSourceNotes(sourceId: string): Promise<void> {
+  const notes = await window.zhiliu.notes.listForSource(sourceId);
+  if (currentSourceId !== sourceId) {
+    return;
+  }
+  renderSourceNotes(notes);
+}
+
+function locateOffsets(
+  doc: Document,
+  start: number,
+  end: number,
+): { startNode: Text; startOffset: number; endNode: Text; endOffset: number } | null {
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let offset = 0;
+  let startNode: Text | null = null;
+  let startOffset = 0;
+  let endNode: Text | null = null;
+  let endOffset = 0;
+  let node = walker.nextNode();
+  while (node) {
+    const text = node as Text;
+    const length = text.data.length;
+    if (!startNode && start >= offset && start <= offset + length) {
+      startNode = text;
+      startOffset = start - offset;
+    }
+    if (end >= offset && end <= offset + length) {
+      endNode = text;
+      endOffset = end - offset;
+    }
+    offset += length;
+    node = walker.nextNode();
+  }
+  if (!startNode || !endNode) {
+    return null;
+  }
+  return { startNode, startOffset, endNode, endOffset };
+}
+
+function highlightQuotation(doc: Document, quotation: string): boolean {
+  if (quotation.trim() === '') {
+    return false;
+  }
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    const text = node as Text;
+    const index = text.data.indexOf(quotation);
+    if (index >= 0) {
+      const range = doc.createRange();
+      range.setStart(text, index);
+      range.setEnd(text, index + quotation.length);
+      wrapHighlight(doc, range);
+      return true;
+    }
+    node = walker.nextNode();
+  }
+  return false;
+}
+
+function wrapHighlight(doc: Document, range: Range): void {
+  const mark = doc.createElement('mark');
+  mark.setAttribute('data-zhiliu-highlight', '');
+  mark.append(range.extractContents());
+  range.insertNode(mark);
+  mark.scrollIntoView({ block: 'center' });
+}
+
+function applyHighlight(doc: Document, target: HighlightTarget): void {
+  const located = locateOffsets(doc, target.start, target.end);
+  if (located) {
+    const range = doc.createRange();
+    range.setStart(located.startNode, located.startOffset);
+    range.setEnd(located.endNode, located.endOffset);
+    wrapHighlight(doc, range);
+    return;
+  }
+  highlightQuotation(doc, target.quotation);
+}
+
+async function jumpToSourceNote(note: AtomicNote): Promise<void> {
+  const parsed = parseSourcePosition(note.sourcePosition);
+  if (!parsed || !isReading()) {
+    return;
+  }
+  pendingHighlight = { quotation: note.quotation, start: parsed.start, end: parsed.end };
+  showReading(await window.zhiliu.library.jump(parsed.spineIndex));
 }
 
 async function turnReading(direction: 'prev' | 'next'): Promise<void> {
@@ -342,11 +609,23 @@ function showReading(view: ReadingView): void {
   chapter.textContent = view.chapterLabel;
   prev.disabled = !view.hasPrev;
   next.disabled = !view.hasNext;
-  frame.onload = () => bindFrameKeys(frame);
+  lastSelection = null;
+  currentSourceId = view.sourceId;
+  currentSpineIndex = view.spineIndex;
+  const highlight = pendingHighlight;
+  frame.onload = () => {
+    bindFrameKeys(frame);
+    if (highlight && frame.contentDocument) {
+      applyHighlight(frame.contentDocument, highlight);
+    }
+    if (pendingHighlight === highlight) {
+      pendingHighlight = null;
+    }
+  };
   frame.srcdoc = readerDocument(view.html);
   renderToc(view.toc);
-  currentSourceId = view.sourceId;
   renderReadFlag(view.status);
+  void refreshSourceNotes(view.sourceId);
   reader.focus();
 }
 
@@ -358,7 +637,15 @@ function showLibraryList(): void {
     return;
   }
   closeToc();
+  if (captureDialog().open) {
+    captureDialog().close();
+  }
   currentSourceId = null;
+  currentSpineIndex = 0;
+  lastSelection = null;
+  captureDraft = null;
+  pendingHighlight = null;
+  renderSourceNotes([]);
   reader.hidden = true;
   browse.hidden = false;
   if (frame) {
@@ -390,6 +677,12 @@ window.addEventListener('keydown', (event) => {
   if (event.key === ',') {
     event.preventDefault();
     void openSettings();
+    return;
+  }
+
+  if (event.key === 'm' || event.key === 'M') {
+    event.preventDefault();
+    beginCapture();
     return;
   }
 
@@ -462,6 +755,45 @@ document.getElementById('toc-list')?.addEventListener('click', (event) => {
 });
 document.getElementById('reader-read-flag')?.addEventListener('click', () => {
   void toggleReadFlag();
+});
+document.getElementById('reader-capture')?.addEventListener('mousedown', (event) => {
+  event.preventDefault();
+});
+document.getElementById('reader-capture')?.addEventListener('click', () => {
+  beginCapture();
+});
+document.getElementById('reader-notes-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>('[data-note-id]');
+  const id = button?.dataset.noteId;
+  if (!id) {
+    return;
+  }
+  const note = sourceNotes.find((item) => item.id === id);
+  if (!note) {
+    return;
+  }
+  void jumpToSourceNote(note);
+});
+document.getElementById('capture-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  void saveCapture();
+});
+document.getElementById('capture-thought')?.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    void saveCapture();
+  }
+});
+document.getElementById('capture-cancel')?.addEventListener('click', () => {
+  captureDialog().close();
+});
+document.getElementById('capture-dialog')?.addEventListener('close', () => {
+  captureDraft = null;
+  document.getElementById('reader-capture')?.focus();
 });
 
 document.getElementById('choose-vault')?.addEventListener('click', () => {
