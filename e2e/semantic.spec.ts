@@ -92,7 +92,7 @@ test('保存第二条笔记时不会重新嵌入第一条', async () => {
 test('语义检索书籍命中仍标注部分索引，且不发出网络请求', async () => {
   const session = await launchZhiliu({ chooseFiles: [fireside] });
   try {
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await expect(session.window.getByRole('button', { name: '炉边小札' })).toBeVisible();
 
     const remote: string[] = [];

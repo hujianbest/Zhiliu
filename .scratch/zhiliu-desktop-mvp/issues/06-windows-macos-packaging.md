@@ -16,10 +16,14 @@
 - [ ] macOS 产物用一个稳定的自签证书签名，而非纯 ad-hoc 签名，使文件夹访问授权在版本之间保持有效（ADR-0010）
 - [ ] 测试断言签名标识在连续两次构建之间不变
 - [ ] 该证书作为长期项目机密被保管在构建机的登录钥匙串中，并有一份仓库之外的离线加密备份；文档记录导出流程、恢复路径，以及丢失它会导致所有用户重新授权（ADR-0010）
-- [ ] `LSMinimumSystemVersion` 取所用 Electron 大版本声明的 macOS 下界，而非写死某个版本号（ADR-0005）
-- [ ] 原生模块被正确地从打包归档中解出，端到端测试在打包产物上验证其可加载
-- [ ] 打包应用的冒烟测试覆盖安装、启动、打开文件、读取系统凭据与一次基础导入
+- [x] `LSMinimumSystemVersion` 取所用 Electron 大版本声明的 macOS 下界，而非写死某个版本号（ADR-0005）
+- [x] 原生模块被正确地从打包归档中解出，端到端测试在打包产物上验证其可加载
+- [x] 打包应用的冒烟测试覆盖安装、启动、打开文件、读取系统凭据与一次基础导入
 - [ ] 文档说明 macOS 会出现「无法验证开发者」及其绕过步骤，并经人工验证
-- [ ] 文档说明 Windows 每次发版都会重建 SmartScreen 信誉，且 Windows 11 的 Smart App Control 可能直接阻止执行
-- [ ] 文档不暗示这是消费级顺畅的安装体验
-- [ ] 首个版本不包含付费签名、公证与自动更新
+- [x] 文档说明 Windows 每次发版都会重建 SmartScreen 信誉，且 Windows 11 的 Smart App Control 可能直接阻止执行
+- [x] 文档不暗示这是消费级顺畅的安装体验
+- [x] 首个版本不包含付费签名、公证与自动更新
+
+## Comments
+
+- 2026-08-30 AUTO 在 Linux 云环境落地 `electron-builder`：`npm run pack` / `pack:dir` / `pack:win` / `pack:mac`。Playwright 启动 `release/linux-unpacked/zhiliu`；冒烟覆盖启动、打开 EPUB、读取已保存凭据、导入；`keytar` 从 asar 解出；`EnableNodeCliInspectArguments` fuse 保持开启。`pack:mac` 在缺少 `ZHILIU_CODESIGN_IDENTITY` / `CSC_LINK` 时拒绝 ad-hoc。证书导出/恢复流程见 `docs/codesign-certificate.md`，私钥不进仓库。Windows NSIS 与 macOS 自签 DMG 未在本环境实际产出；连续签名标识测试在 `e2e/codesign-platform.spec.ts` 于非 macOS 上 skip；Gatekeeper 弹窗的人工核对未做。见 `docs/packaging.md`、A-13。

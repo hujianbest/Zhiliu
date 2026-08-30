@@ -1,0 +1,56 @@
+appId: com.zhiliu.desktop
+productName: 知流
+executableName: zhiliu
+copyright: Copyright © 知流 contributors
+artifactName: ${name}-${version}-${os}-${arch}.${ext}
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - package.json
+asar: true
+asarUnpack:
+  - '**/*.node'
+  - '**/{keytar,onnxruntime-node,better-sqlite3}/**'
+electronFuses:
+  enableNodeCliInspectArguments: true
+publish: null
+extraMetadata:
+  main: dist/main/index.cjs
+npmRebuild: true
+nodeGypRebuild: false
+mac:
+  category: public.app-category.productivity
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  notarize: false
+  target:
+    - target: dmg
+      arch:
+        - universal
+    - target: zip
+      arch:
+        - universal
+  # identity is injected by scripts/pack.mjs from ZHILIU_CODESIGN_IDENTITY / CSC_NAME.
+  # Ad-hoc signing is refused (ADR-0010).
+win:
+  signAndEditExecutable: false
+  target:
+    - nsis
+    - zip
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: 知流
+linux:
+  category: Office
+  executableName: zhiliu
+  target:
+    - dir
+    - AppImage
+  synopsis: 本地优先的桌面知识工作台
+  description: 本地优先的桌面知识工作台

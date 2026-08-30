@@ -4,27 +4,35 @@
   "version": "0.1.0",
   "private": true,
   "description": "本地优先的桌面知识工作台",
+  "author": "知流 contributors",
   "license": "MIT",
   "type": "module",
   "main": "dist/main/index.cjs",
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "npm run build && electron .",
+    "pack": "npm run build && node scripts/pack.mjs",
+    "pack:dir": "npm run build && node scripts/pack.mjs --dir",
+    "pack:win": "npm run build && node scripts/pack.mjs --win",
+    "pack:mac": "npm run build && node scripts/pack.mjs --mac",
     "test": "npm run test:e2e",
-    "test:e2e": "npm run build && playwright test"
+    "test:e2e": "npm run pack:dir && playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.18.0",
     "@types/sanitize-html": "^2.16.1",
     "electron": "^38.2.0",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.25.9",
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "better-sqlite3": "^12.11.1",
     "gray-matter": "^4.0.3",
     "jszip": "^3.10.1",
-    "minisearch": "^7.2.0",
+    "pdfjs-dist": "^6.3.289",
     "sanitize-html": "^2.17.7"
   },
   "optionalDependencies": {

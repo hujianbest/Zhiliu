@@ -13,7 +13,7 @@ test.describe.configure({ mode: 'serial' });
 test('从书库打开 EPUB 可以看到正文', async () => {
   const session = await launchZhiliu({ chooseFiles: [fireside] });
   try {
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     const item = session.window.getByRole('listitem').filter({ hasText: '炉边小札' });
     await expect(item).toBeVisible();
     await item.getByRole('button', { name: '炉边小札' }).click();
@@ -30,7 +30,7 @@ test('从书库打开 EPUB 可以看到正文', async () => {
 test('可以用上一章下一章和方向键连续翻阅', async () => {
   const session = await launchZhiliu({ chooseFiles: [twoChapters] });
   try {
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await session.window.getByRole('button', { name: '双章试读' }).click();
     const body = session.window.frameLocator('iframe[title="正文"]');
     await expect(body.getByText('第一章独有句：北窗的灯还亮着。')).toBeVisible();
@@ -60,7 +60,7 @@ test('可以用上一章下一章和方向键连续翻阅', async () => {
 test('阅读正文可以选中', async () => {
   const session = await launchZhiliu({ chooseFiles: [fireside] });
   try {
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await session.window.getByRole('button', { name: '炉边小札' }).click();
     const frame = session.window.frameLocator('iframe[title="正文"]');
     const passage = frame.getByText('这是一本用于端到端测试的小书。');
@@ -82,7 +82,7 @@ test('阅读正文可以选中', async () => {
 test('打开含脚本的 EPUB 时脚本与活动内容不会执行', async () => {
   const session = await launchZhiliu({ chooseFiles: [scripted] });
   try {
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await session.window.getByRole('button', { name: '含脚本的书' }).click();
     const body = session.window.frameLocator('iframe[title="正文"]');
     await expect(body.getByText('这段正文应当可见。')).toBeVisible();
@@ -132,7 +132,7 @@ test('阅读过程中不会发出网络请求', async () => {
     }
   });
   try {
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await session.window.getByRole('button', { name: '含脚本的书' }).click();
     const body = session.window.frameLocator('iframe[title="正文"]');
     await expect(body.getByText('这段正文应当可见。')).toBeVisible();

@@ -146,7 +146,8 @@ body {
 }
 
 .reader-chapter,
-.reader-status {
+.reader-status,
+.reader-notice {
   margin: 0;
   color: var(--color-ink-muted);
 }
@@ -217,6 +218,13 @@ body {
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.source-note-kind {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--color-ink-muted);
+  font-size: 0.85rem;
 }
 
 .source-note-quote,

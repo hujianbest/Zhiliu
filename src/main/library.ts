@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { ImportFailure, ImportResult, ReadingStatus, SourceDocument } from '../shared/api';
+import type { ImportFailure, ImportResult, ReadingStatus, SourceDocument, SourceKind } from '../shared/api';
 import { parseEpub } from './epub';
+import { parsePdf } from './pdf';
 import { readProgress } from './reading-ledger';
 import type { Vault } from './vault';
 
@@ -52,8 +53,9 @@ export class Library {
     return (await this.read()).sources.find((source) => source.id === id) ?? null;
   }
 
-  sourcePath(id: string): string {
-    return path.join(this.requireRoot(), 'sources', `${id}.epub`);
+  sourcePath(id: string, kind: SourceKind = 'epub'): string {
+    const ext = kind === 'pdf' ? 'pdf' : 'epub';
+    return path.join(this.requireRoot(), 'sources', `${id}.${ext}`);
   }
 
   root(): string {
@@ -68,7 +70,7 @@ export class Library {
       } catch (error) {
         failures.push({
           filename: path.basename(filePath),
-          message: error instanceof Error ? error.message : '无法打开：不是有效的 EPUB',
+          message: error instanceof Error ? error.message : '无法打开：不是有效的来源文档',
         });
       }
     }
@@ -78,16 +80,32 @@ export class Library {
   private async importOne(filePath: string): Promise<CatalogSource> {
     const root = this.requireRoot();
     const originalFilename = path.basename(filePath);
+    const ext = path.extname(filePath).toLowerCase();
     const bytes = await readFile(filePath);
-    const parsed = await parseEpub(bytes);
     const id = randomUUID();
-    const dest = path.join(root, 'sources', `${id}.epub`);
+    let kind: SourceKind;
+    let title: string;
+    let authors: string[];
+    if (ext === '.pdf') {
+      const parsed = await parsePdf(bytes);
+      kind = 'pdf';
+      title = parsed.title || stripExtension(originalFilename);
+      authors = parsed.authors;
+    } else if (ext === '.epub') {
+      const parsed = await parseEpub(bytes);
+      kind = 'epub';
+      title = parsed.title || stripExtension(originalFilename);
+      authors = parsed.authors;
+    } else {
+      throw new Error('无法打开：只支持 EPUB 与 PDF');
+    }
+    const dest = path.join(root, 'sources', `${id}.${kind}`);
     await writeFile(dest, bytes);
     const source: CatalogSource = {
       id,
-      kind: 'epub',
-      title: parsed.title || stripExtension(originalFilename),
-      authors: parsed.authors,
+      kind,
+      title,
+      authors,
       indexStatus: 'pending',
       originalFilename,
     };

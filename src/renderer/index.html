@@ -37,7 +37,7 @@
             <p id="library-empty">还没有来源文档。</p>
             <p id="library-error" role="alert" hidden></p>
             <ul id="library-list" aria-label="书库"></ul>
-            <button type="button" id="import-epub">导入 EPUB</button>
+            <button type="button" id="import-epub">导入 EPUB 或 PDF</button>
           </div>
           <div id="library-reader" hidden tabindex="-1">
             <div class="reader-bar">
@@ -46,6 +46,7 @@
             </div>
             <p id="reader-chapter" class="reader-chapter"></p>
             <p id="reader-status" class="reader-status"></p>
+            <p id="reader-text-layer-notice" class="reader-notice" role="status" hidden></p>
             <p id="capture-hint" role="status" hidden></p>
             <div class="reader-body">
               <iframe id="reader-frame" title="正文" sandbox="allow-same-origin"></iframe>

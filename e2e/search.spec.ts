@@ -1,3 +1,4 @@
+import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
@@ -16,7 +17,7 @@ const newThought = '独角鲸索引探针';
 test.describe.configure({ mode: 'serial' });
 
 async function importBook(window: Page, title: string): Promise<void> {
-  await window.getByRole('button', { name: '导入 EPUB' }).click();
+  await window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
   await expect(window.getByRole('button', { name: title })).toBeVisible();
 }
 
@@ -59,7 +60,7 @@ test('检索中文想法可以命中笔记并跳回引文', async () => {
     await importAndOpen(session.window, '炉边小札');
     await captureThought(session.window, chineseThought);
     await session.window.getByRole('button', { name: '返回书库' }).click();
-    await expect(session.window.getByRole('button', { name: '导入 EPUB' })).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '导入 EPUB 或 PDF' })).toBeVisible();
 
     await session.window.keyboard.press('Control+K');
     const dialog = session.window.getByRole('dialog', { name: '检索' });
@@ -81,6 +82,22 @@ test('检索中文想法可以命中笔记并跳回引文', async () => {
   }
 });
 
+test('两字中文词也可以命中笔记', async () => {
+  const session = await launchZhiliu({ chooseFiles: [fireside] });
+  try {
+    await importAndOpen(session.window, '炉边小札');
+    await captureThought(session.window, chineseThought);
+    const dialog = await openSearch(session.window);
+    await dialog.getByRole('searchbox').fill('青瓷');
+    const hit = dialog.getByRole('list', { name: '检索结果' }).getByRole('button').filter({ hasText: '笔记' });
+    await expect(hit).toBeVisible();
+    await expect(hit).toContainText('青瓷');
+    await access(path.join(session.vaultPath as string, '.zhiliu', 'cache', 'search.sqlite'));
+  } finally {
+    await session.close();
+  }
+});
+
 test('英文关键词可以命中笔记', async () => {
   const session = await launchZhiliu({ chooseFiles: [fireside] });
   try {
@@ -95,7 +112,7 @@ test('英文关键词可以命中笔记', async () => {
 
     const apiHits = await session.window.evaluate(async (keyword) => window.zhiliu.search.query(keyword), englishKeyword);
     expect(apiHits.some((hit) => hit.kind === 'note')).toBeTruthy();
-    expect(apiHits.every((hit) => hit.kind === 'epub' || hit.kind === 'note' || hit.kind === 'article' || hit.kind === 'draft')).toBeTruthy();
+    expect(apiHits.every((hit) => hit.kind === 'epub' || hit.kind === 'pdf' || hit.kind === 'note' || hit.kind === 'article' || hit.kind === 'draft')).toBeTruthy();
     expect(apiHits.filter((hit) => hit.kind === 'note').every((hit) => hit.partialIndex === false)).toBeTruthy();
 
     const dialog = await openSearch(session.window);

@@ -1,18 +1,21 @@
 import { readFile } from 'node:fs/promises';
-import type { ReadingStatus, ReadingView, TurnDirection } from '../shared/api';
+import type { ReadingStatus, ReadingView, SourceKind, TurnDirection } from '../shared/api';
 import { extractReading, type EpubChapter, type EpubTocEntry } from './epub';
 import type { Library } from './library';
+import { extractPdfReading } from './pdf';
 import type { PreferenceStore } from './preferences';
 import { getBookProgress, putBookProgress } from './reading-ledger';
 
 type Session = {
   id: string;
+  kind: SourceKind;
   title: string;
   chapters: EpubChapter[];
   toc: EpubTocEntry[];
   index: number;
   status: ReadingStatus;
   opened: boolean;
+  textLayers: boolean[];
 };
 
 export class Reading {
@@ -28,19 +31,37 @@ export class Reading {
     if (!source) {
       throw new Error('找不到这本书');
     }
-    const bytes = await readFile(this.library.sourcePath(id));
-    const extracted = await extractReading(bytes);
+    const bytes = await readFile(this.library.sourcePath(id, source.kind));
+    let chapters: EpubChapter[];
+    let toc: EpubTocEntry[];
+    let extractedTitle: string;
+    let textLayers: boolean[];
+    if (source.kind === 'pdf') {
+      const extracted = await extractPdfReading(bytes);
+      extractedTitle = extracted.title;
+      chapters = extracted.pages.map((page) => ({ label: page.label, html: page.html }));
+      toc = extracted.toc;
+      textLayers = extracted.pages.map((page) => page.hasText);
+    } else {
+      const extracted = await extractReading(bytes);
+      extractedTitle = extracted.title;
+      chapters = extracted.chapters;
+      toc = extracted.toc;
+      textLayers = extracted.chapters.map(() => true);
+    }
     const saved = await getBookProgress(this.library.root(), id);
     const last = saved?.spineIndex ?? 0;
-    const index = Math.min(Math.max(0, last), extracted.chapters.length - 1);
+    const index = Math.min(Math.max(0, last), chapters.length - 1);
     this.session = {
       id,
-      title: source.title || extracted.title,
-      chapters: extracted.chapters,
-      toc: extracted.toc,
+      kind: source.kind,
+      title: source.title || extractedTitle,
+      chapters,
+      toc,
       index,
       status: saved?.status === 'read' ? 'read' : 'reading',
       opened: true,
+      textLayers,
     };
     await this.persist(true);
     return this.view();
@@ -48,23 +69,25 @@ export class Reading {
 
   async turn(direction: TurnDirection): Promise<ReadingView> {
     const session = this.requireSession();
+    const before = session.index;
     if (direction === 'next' && session.index < session.chapters.length - 1) {
       session.index += 1;
     }
     if (direction === 'prev' && session.index > 0) {
       session.index -= 1;
     }
-    this.touchReading();
+    this.applyProgressAfterMove(before);
     await this.persist(true);
     return this.view();
   }
 
   async jump(spineIndex: number): Promise<ReadingView> {
     const session = this.requireSession();
+    const before = session.index;
     if (Number.isInteger(spineIndex) && spineIndex >= 0 && spineIndex < session.chapters.length) {
       session.index = spineIndex;
     }
-    this.touchReading();
+    this.applyProgressAfterMove(before);
     await this.persist(true);
     return this.view();
   }
@@ -114,6 +137,16 @@ export class Reading {
     return status;
   }
 
+  private applyProgressAfterMove(beforeIndex: number): void {
+    const session = this.requireSession();
+    const last = session.chapters.length - 1;
+    if (session.index === last && beforeIndex !== last) {
+      session.status = 'read';
+      return;
+    }
+    this.touchReading();
+  }
+
   private touchReading(): void {
     const session = this.requireSession();
     if (session.status === 'unread') {
@@ -136,6 +169,7 @@ export class Reading {
     const chapter = session.chapters[session.index];
     return {
       sourceId: session.id,
+      kind: session.kind,
       title: session.title,
       chapterLabel: chapter.label,
       html: chapter.html,
@@ -144,6 +178,7 @@ export class Reading {
       toc: session.toc,
       status: session.status,
       spineIndex: session.index,
+      hasTextLayer: session.textLayers[session.index] ?? true,
     };
   }
 
