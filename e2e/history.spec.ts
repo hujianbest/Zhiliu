@@ -68,7 +68,7 @@ test('捕获产生提交且来源二进制不入库；改笔记后可从时间�
     expect(subjects).toContain('导入来源文档');
     expect(subjects).toContain('创建知识库');
 
-    await session.window.getByRole('button', { name: '思想' }).click();
+    await session.window.getByRole('button', { name: '思想', exact: true }).click();
     const notes = session.window.getByRole('list', { name: '全部笔记' });
     await expect(notes.getByText(originalThought)).toBeVisible();
     const timeline = session.window.getByRole('list', { name: '历史时间线' });
@@ -88,7 +88,7 @@ test('捕获产生提交且来源二进制不入库；改笔记后可从时间�
       },
       { id: noteId, quotation: firesideSentence, thought: revisedThought },
     );
-    await session.window.getByRole('button', { name: '思想' }).click();
+    await session.window.getByRole('button', { name: '思想', exact: true }).click();
     await expect(notes.getByText(revisedThought)).toBeVisible();
     await expect(await readFile(files[0], 'utf8')).toContain(revisedThought);
     expect(await gitLogSubjects(vaultPath)).toContain('更新一条笔记');
