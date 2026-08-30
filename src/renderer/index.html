@@ -39,6 +39,8 @@
             <ul id="library-list" aria-label="书库"></ul>
             <button type="button" id="import-epub">导入 EPUB 或 PDF</button>
             <button type="button" id="import-url">导入网页</button>
+            <button type="button" id="import-markdown">导入 Markdown 文件夹</button>
+            <p id="markdown-import-hint" class="lede">导入 Markdown 是一次性复制，原文件夹之后的修改不会同步到知流。</p>
           </div>
           <div id="library-reader" hidden tabindex="-1">
             <div class="reader-bar">
@@ -78,6 +80,9 @@
             <button type="button" id="thoughts-to-library">去书库阅读</button>
           </p>
           <ul id="thoughts-notes" aria-label="全部笔记"></ul>
+          <h2>需要修复</h2>
+          <p id="broken-empty">没有需要修复的文件。</p>
+          <ul id="broken-list" aria-label="需要修复"></ul>
           <h2>历史</h2>
           <p class="lede">每一次记下或导入都会出现在这里。回滚会把知识库恢复到当时的样子。</p>
           <p id="history-empty">还没有可回看的操作。</p>
@@ -94,6 +99,9 @@
         <p class="lede" id="agent-copy">侧栏跟随三个空间。配置模型之后，提问不会替换正在阅读的页面。</p>
         <p id="agent-unconfigured" hidden>尚未配置模型。</p>
         <button type="button" id="agent-open-settings" hidden>打开设置</button>
+        <button type="button" id="agent-analyze">开始分析</button>
+        <p id="agent-status" role="status"></p>
+        <p id="agent-result"></p>
       </aside>
     </div>
 
@@ -144,6 +152,23 @@
         <p id="settings-saved" class="probe-status" role="status"></p>
       </form>
     </dialog>
+    <dialog id="note-edit-dialog" aria-labelledby="note-edit-title">
+      <form id="note-edit-form">
+        <h2 id="note-edit-title">编辑笔记</h2>
+        <label>
+          引文
+          <textarea id="note-edit-quotation" name="quotation" aria-label="引文" rows="3"></textarea>
+        </label>
+        <label>
+          想法
+          <textarea id="note-edit-thought" name="thought" aria-label="想法" rows="4"></textarea>
+        </label>
+        <div class="settings-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="note-edit-cancel">取消</button>
+        </div>
+      </form>
+    </dialog>
     <dialog id="url-dialog" aria-labelledby="url-title">
       <form id="url-form">
         <h2 id="url-title">导入网页</h2>
@@ -158,6 +183,7 @@
         </div>
       </form>
     </dialog>
+    <dialog id="rollback-dialog" aria-labelledby="rollback-title">
       <h2 id="rollback-title">回滚到此处</h2>
       <p>之后记下的内容会从知识库里撤掉，回到这一刻的样子。</p>
       <p id="rollback-summary"></p>
@@ -165,6 +191,21 @@
         <button type="button" id="rollback-confirm">确定回滚</button>
         <button type="button" id="rollback-cancel">取消</button>
       </div>
+    </dialog>
+    <dialog id="repair-dialog" aria-labelledby="repair-title">
+      <form id="repair-form">
+        <h2 id="repair-title">修复笔记</h2>
+        <p id="repair-file"></p>
+        <p class="lede">补回原来的稳定标识。知流不会悄悄换一个新的。</p>
+        <label>
+          稳定标识
+          <input id="repair-id" name="id" aria-label="稳定标识" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="settings-actions">
+          <button type="submit">修复</button>
+          <button type="button" id="repair-cancel">取消</button>
+        </div>
+      </form>
     </dialog>
     <dialog id="toc-dialog" aria-labelledby="toc-title">
       <h2 id="toc-title">目录</h2>

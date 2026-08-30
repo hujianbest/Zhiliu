@@ -17,3 +17,7 @@
 - A-15 2026-08-30 [生效] AUTO：知识库是本地 Git 仓库；应用内时间线只展示中文操作摘要与「回滚到此处」，不提供分支/远端/rebase。提交作者固定为 `知流 <zhiliu@localhost>`。追踪 Markdown 与轻量元数据，忽略来源二进制、缓存、模型与预留 OCR 目录。回滚为 `git reset --hard` 后重建索引。 — 默认理由: 票 11、ADR-0025。
 - A-16 2026-08-30 [生效] AUTO：混合检索以 FTS5 BM25 为第一路，向量只补跨语言与概念召回。Embedding 在 utilityProcess 中推理；`ZHILIU_E2E=1` 仍用假适配器。`ZHILIU_EMBEDDING_FAIL=missing|onnx|crash` 分别制造三种降级。导入不等待全量嵌入。 — 默认理由: 票 12、ADR-0006、ADR-0007、ADR-0026。
 - A-17 2026-08-30 [生效] AUTO：网页导入粘贴 URL，主进程 fetch（不带 Cookie）后净化 HTML 快照写入 `sources/*.html`；401/403/付费墙/无正文明确失败且不留条目。 — 默认理由: 票 13。
+- A-18 2026-08-30 [生效] AUTO：Markdown 文件夹导入是一次性复制进 `notes/`，冲突时改名为 `name-2.md`，未映射 frontmatter 写入 `.zhiliu/import-reports/`；原文件夹不被修改、也不再同步。 — 默认理由: 票 15。
+- A-19 2026-08-30 [生效] AUTO：知识库 `fs.watch({ recursive: true })` 防抖 200ms 后重建索引并通知渲染层；缺标识或重复标识的文件隔离为「需要修复」，绝不静默发新 id。 — 默认理由: 票 16、ADR-0013。
+- A-20 2026-08-30 [生效] AUTO：检索默认按用户 → 来源 → AI 稳定排序；思想笔记想法字段为用户、摘录为来源；不提供手工改归属入口。 — 默认理由: 票 17、ADR-0004。
+- A-21 2026-08-30 [生效] AUTO：手动「开始分析」为 interactive 通道；本地混合检索最多选出 8 条笔记再走 OpenAI 兼容 `/chat/completions`；留痕写入 `.zhiliu/traces/`，含七字段与 channel，不含 API Key。 — 默认理由: 票 18、ADR-0027。

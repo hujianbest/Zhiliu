@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import type { SearchHit, SearchKind } from '../shared/api';
+import type { SearchHit, SearchKind, ProvenanceValue } from '../shared/api';
 
 const CJK = /[\u3400-\u9fff\uf900-\ufaff]/u;
 const LATIN = /[a-z0-9]+/gi;
@@ -16,6 +16,7 @@ export type KeywordDoc = {
   sourcePosition: string;
   spineIndex: number;
   partialIndex: boolean;
+  provenance: ProvenanceValue;
 };
 
 type StoredRow = {
@@ -28,6 +29,7 @@ type StoredRow = {
   source_position: string;
   spine_index: number;
   partial_index: number;
+  provenance: ProvenanceValue;
   score: number;
 };
 
@@ -94,7 +96,7 @@ function toHit(row: StoredRow, query: string): SearchHit {
     snippet: snippet(row.text, query),
     sourceId: row.source_id,
     partialIndex: row.partial_index === 1,
-    provenance: row.kind === 'note' ? 'user' : 'source',
+    provenance: (row.provenance as ProvenanceValue) || (row.kind === 'note' ? 'user' : 'source'),
     spineIndex: row.spine_index,
   };
   if (row.note_id) {
@@ -129,7 +131,8 @@ export class KeywordIndex {
         note_id TEXT NOT NULL,
         source_position TEXT NOT NULL,
         spine_index INTEGER NOT NULL,
-        partial_index INTEGER NOT NULL
+        partial_index INTEGER NOT NULL,
+        provenance TEXT NOT NULL DEFAULT 'source'
       );
       CREATE VIRTUAL TABLE IF NOT EXISTS fts_latin USING fts5(
         id UNINDEXED,
@@ -146,6 +149,11 @@ export class KeywordIndex {
     `);
     this.db = db;
     this.dbPath = next;
+    try {
+      db.exec("ALTER TABLE docs ADD COLUMN provenance TEXT NOT NULL DEFAULT 'source'");
+    } catch {
+      // Column already exists on fresh tables.
+    }
   }
 
   close(): void {
@@ -159,8 +167,8 @@ export class KeywordIndex {
     const tx = db.transaction(() => {
       db.exec('DELETE FROM fts_latin; DELETE FROM fts_cjk; DELETE FROM docs;');
       const insertDoc = db.prepare(`
-        INSERT INTO docs (id, kind, title, text, source_id, note_id, source_position, spine_index, partial_index)
-        VALUES (@id, @kind, @title, @text, @sourceId, @noteId, @sourcePosition, @spineIndex, @partialIndex)
+        INSERT INTO docs (id, kind, title, text, source_id, note_id, source_position, spine_index, partial_index, provenance)
+        VALUES (@id, @kind, @title, @text, @sourceId, @noteId, @sourcePosition, @spineIndex, @partialIndex, @provenance)
       `);
       const insertLatin = db.prepare('INSERT INTO fts_latin (id, title, text) VALUES (?, ?, ?)');
       const insertCjk = db.prepare('INSERT INTO fts_cjk (id, title, text) VALUES (?, ?, ?)');
@@ -175,6 +183,7 @@ export class KeywordIndex {
           sourcePosition: doc.sourcePosition,
           spineIndex: doc.spineIndex,
           partialIndex: doc.partialIndex ? 1 : 0,
+          provenance: doc.provenance,
         });
         insertLatin.run(doc.id, doc.title, doc.text);
         insertCjk.run(doc.id, doc.title, doc.text);

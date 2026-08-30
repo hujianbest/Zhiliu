@@ -5,12 +5,21 @@ const api: ZhiliuApi = {
   vault: {
     current: () => ipcRenderer.invoke('vault:current'),
     choose: () => ipcRenderer.invoke('vault:choose'),
+    onChanged: (listener) => {
+      const wrapped = () => listener();
+      ipcRenderer.on('vault:changed', wrapped);
+      return () => {
+        ipcRenderer.off('vault:changed', wrapped);
+      };
+    },
   },
   notes: {
     save: (input: SaveNoteInput) => ipcRenderer.invoke('notes:save', input),
     get: (id: string) => ipcRenderer.invoke('notes:get', id),
     list: () => ipcRenderer.invoke('notes:list'),
     listForSource: (sourceId) => ipcRenderer.invoke('notes:listForSource', sourceId),
+    broken: () => ipcRenderer.invoke('notes:broken'),
+    repair: (filePath, id) => ipcRenderer.invoke('notes:repair', filePath, id),
   },
   search: {
     query: (q, options) => ipcRenderer.invoke('search:query', q, options),
@@ -21,6 +30,10 @@ const api: ZhiliuApi = {
     list: () => ipcRenderer.invoke('history:list'),
     rollback: (id) => ipcRenderer.invoke('history:rollback', id),
   },
+  agent: {
+    analyze: () => ipcRenderer.invoke('agent:analyze'),
+    latestTrace: () => ipcRenderer.invoke('agent:latestTrace'),
+  },
   models: {
     view: () => ipcRenderer.invoke('models:view'),
     save: (input: SaveModelSettingsInput) => ipcRenderer.invoke('models:save', input),
@@ -30,6 +43,7 @@ const api: ZhiliuApi = {
     list: () => ipcRenderer.invoke('library:list'),
     importEpubs: () => ipcRenderer.invoke('library:import'),
     importUrl: (url) => ipcRenderer.invoke('library:importUrl', url),
+    importMarkdown: () => ipcRenderer.invoke('library:importMarkdown'),
     open: (id) => ipcRenderer.invoke('library:open', id),
     turn: (direction) => ipcRenderer.invoke('library:turn', direction),
     jump: (spineIndex) => ipcRenderer.invoke('library:jump', spineIndex),

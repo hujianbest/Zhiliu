@@ -49,6 +49,20 @@ export class ModelSettings {
     return this.view();
   }
 
+  async resolve(role: ModelRole = 'fast'): Promise<{ baseUrl: string; model: string; apiKey: string } | null> {
+    const view = await this.view();
+    const chosen = view[role].hasKey && view[role].baseUrl ? view[role] : view.fast.hasKey ? view.fast : view.deep;
+    if (!chosen.baseUrl || !chosen.model || !chosen.hasKey) {
+      return null;
+    }
+    const account = chosen === view.deep ? ACCOUNTS.deep : ACCOUNTS.fast;
+    const apiKey = (await this.credentials.get(account)) ?? '';
+    if (!apiKey) {
+      return null;
+    }
+    return { baseUrl: chosen.baseUrl, model: chosen.model, apiKey };
+  }
+
   async probe(input: { baseUrl: string; apiKey: string; role?: ModelRole }): Promise<ProbeOutcome> {
     let apiKey = input.apiKey;
     if (!apiKey && input.role) {

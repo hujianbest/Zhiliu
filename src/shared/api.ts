@@ -151,16 +151,44 @@ export type EmbedCall = {
   id: string;
 };
 
+export type BrokenNote = {
+  path: string;
+  reason: 'missing-id' | 'duplicate-id' | 'invalid';
+  id?: string;
+};
+
+export type MarkdownImportResult = {
+  reportPath: string;
+  copied: number;
+  renamed: { from: string; to: string }[];
+  unmapped: { file: string; fields: string[] }[];
+};
+
+export type GenerationTrace = {
+  id: string;
+  taskType: string;
+  channel: 'interactive' | 'background';
+  model: string;
+  promptVersion: string;
+  sourceIds: string[];
+  timestamp: string;
+  usage: { promptTokens: number; completionTokens: number; estimated: boolean };
+  result: string;
+};
+
 export type ZhiliuApi = {
   vault: {
     current(): Promise<VaultStatus>;
     choose(): Promise<VaultStatus>;
+    onChanged(listener: () => void): () => void;
   };
   notes: {
     save(input: SaveNoteInput): Promise<AtomicNote>;
     get(id: string): Promise<AtomicNote | null>;
     list(): Promise<AtomicNote[]>;
     listForSource(sourceId: string): Promise<AtomicNote[]>;
+    broken(): Promise<BrokenNote[]>;
+    repair(filePath: string, id: string): Promise<void>;
   };
   search: {
     query(q: string, options?: SearchQueryOptions): Promise<SearchHit[]>;
@@ -171,6 +199,10 @@ export type ZhiliuApi = {
     list(): Promise<TimelineEntry[]>;
     rollback(id: string): Promise<TimelineEntry[]>;
   };
+  agent: {
+    analyze(): Promise<{ status: string; trace: GenerationTrace }>;
+    latestTrace(): Promise<GenerationTrace | null>;
+  };
   models: {
     view(): Promise<ModelSettingsView>;
     save(input: SaveModelSettingsInput): Promise<ModelSettingsView>;
@@ -180,6 +212,7 @@ export type ZhiliuApi = {
     list(): Promise<SourceDocument[]>;
     importEpubs(): Promise<ImportResult>;
     importUrl(url: string): Promise<ImportResult>;
+    importMarkdown(): Promise<MarkdownImportResult>;
     open(id: string): Promise<ReadingView>;
     turn(direction: TurnDirection): Promise<ReadingView>;
     jump(spineIndex: number): Promise<ReadingView>;

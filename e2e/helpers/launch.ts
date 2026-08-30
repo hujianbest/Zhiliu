@@ -1,5 +1,4 @@
-import { access } from 'node:fs/promises';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +16,7 @@ export type LaunchOptions = {
   preserveVault?: boolean;
   embeddingFail?: 'missing' | 'onnx' | 'crash';
   embedDelayMs?: number;
+  chooseMarkdownDir?: string;
 };
 
 export type ZhiliuSession = {
@@ -26,6 +26,8 @@ export type ZhiliuSession = {
   userDataPath: string;
   fakeOpenAI: FakeOpenAI;
   executablePath: string;
+  markdownDirPointer: string;
+  setMarkdownDir(dir: string): Promise<void>;
   close(): Promise<void>;
 };
 
@@ -85,6 +87,16 @@ export async function launchZhiliu(options: LaunchOptions = {}): Promise<ZhiliuS
     env.ZHILIU_EMBED_DELAY_MS = String(options.embedDelayMs);
   }
 
+  if (options.chooseMarkdownDir) {
+    env.ZHILIU_CHOOSE_MARKDOWN_DIR = options.chooseMarkdownDir;
+  }
+
+  const markdownDirPointer = path.join(userDataPath, 'choose-markdown-dir.txt');
+  env.ZHILIU_CHOOSE_MARKDOWN_POINTER = markdownDirPointer;
+  if (options.chooseMarkdownDir) {
+    await writeFile(markdownDirPointer, options.chooseMarkdownDir, 'utf8');
+  }
+
   const app = await electron.launch({
     executablePath,
     args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'],
@@ -102,6 +114,10 @@ export async function launchZhiliu(options: LaunchOptions = {}): Promise<ZhiliuS
     userDataPath,
     fakeOpenAI,
     executablePath,
+    markdownDirPointer,
+    async setMarkdownDir(dir: string) {
+      await writeFile(markdownDirPointer, dir, 'utf8');
+    },
     async close() {
       await app.close().catch(() => undefined);
       await fakeOpenAI.close().catch(() => undefined);

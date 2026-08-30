@@ -1,16 +1,19 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import type { SaveModelSettingsInput, SaveNoteInput, SearchQueryOptions, TurnDirection } from '../shared/api';
+import { AgentRuntime } from './agent';
 import { createCredentialStore } from './credentials';
 import { createEmbeddingAdapter } from './embeddings';
 import { VaultGit } from './git';
 import { Library } from './library';
+import { MarkdownImporter } from './markdown-import';
 import { ModelSettings } from './models';
 import { PreferenceStore } from './preferences';
 import { Reading } from './reading';
 import { SearchIndex } from './search';
 import { UtilityWorkerHost } from './utility-host';
 import { Vault } from './vault';
+import { VaultWatcher } from './watcher';
 
 if (process.env.ZHILIU_USER_DATA) {
   app.setPath('userData', process.env.ZHILIU_USER_DATA);
@@ -32,6 +35,10 @@ const reading = new Reading(library, preferences);
 let utilityWorker: UtilityWorkerHost | null = null;
 const search = new SearchIndex(vault, library, createEmbeddingAdapter(process.env, () => utilityWorker));
 const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
+const markdown = new MarkdownImporter(vault);
+const agent = new AgentRuntime(vault, models, search, process.env);
+const watcher = new VaultWatcher(vault, search);
+let mainWindow: BrowserWindow | null = null;
 (globalThis as { __zhiliuPingWorker?: () => Promise<boolean> }).__zhiliuPingWorker = () => {
   if (!utilityWorker) {
     return Promise.reject(new Error('utilityProcess 尚未启动'));
@@ -57,6 +64,7 @@ function createWindow(): void {
     },
   });
 
+  mainWindow = window;
   void window.loadFile(path.join(__dirname, '../renderer/index.html'));
   window.once('ready-to-show', () => {
     window.show();
@@ -67,6 +75,7 @@ async function openVault(vaultPath: string) {
   const status = await vault.use(vaultPath);
   await git.commit('创建知识库');
   await search.rebuild();
+  watcher.start();
   return status;
 }
 
@@ -102,6 +111,12 @@ ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => {
 });
 ipcMain.handle('notes:get', async (_event, id: string) => vault.getNote(id));
 ipcMain.handle('notes:list', async () => vault.listNotes());
+ipcMain.handle('notes:broken', async () => vault.listBroken());
+ipcMain.handle('notes:repair', async (_event, filePath: string, id: string) => {
+  await vault.repairNote(filePath, id);
+  await search.rebuild();
+  await git.commit('更新一条笔记');
+});
 ipcMain.handle('notes:listForSource', async (_event, sourceId: string) => vault.listNotesForSource(sourceId));
 ipcMain.handle('history:list', async () => git.history());
 ipcMain.handle('history:rollback', async (_event, id: string) => {
@@ -170,11 +185,43 @@ ipcMain.handle('library:importUrl', async (_event, url: string) => {
   return result;
 });
 
+ipcMain.handle('library:importMarkdown', async () => {
+  const stub = markdown.stubbedDirectory(process.env);
+  if (stub) {
+    const report = await markdown.importFolder(stub);
+    await git.commit('导入来源文档');
+    await search.rebuild();
+    return report;
+  }
+  const picked = await dialog.showOpenDialog({
+    title: '导入 Markdown 文件夹',
+    properties: ['openDirectory'],
+  });
+  if (picked.canceled || picked.filePaths.length === 0) {
+    return { reportPath: '', copied: 0, renamed: [], unmapped: [] };
+  }
+  const report = await markdown.importFolder(picked.filePaths[0]);
+  await git.commit('导入来源文档');
+  await search.rebuild();
+  return report;
+});
+
+ipcMain.handle('agent:analyze', async () => {
+  const outcome = await agent.analyze();
+  await git.commit('分析知识库');
+  return outcome;
+});
+ipcMain.handle('agent:latestTrace', async () => agent.latestTrace());
+
 app.whenReady().then(async () => {
   utilityWorker = new UtilityWorkerHost();
   await vault.openFromEnvironment();
   await git.commit('创建知识库');
   await search.rebuild();
+  watcher.onChange(() => {
+    mainWindow?.webContents.send('vault:changed');
+  });
+  watcher.start();
   createWindow();
 });
 

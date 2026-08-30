@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
-import type { AtomicNote, NoteRelation, SaveNoteInput, VaultStatus } from '../shared/api';
+import type { AtomicNote, BrokenNote, NoteRelation, SaveNoteInput, VaultStatus } from '../shared/api';
 import type { PreferenceStore } from './preferences';
 
 const VAULT_MANIFEST = path.join('.zhiliu', 'vault.json');
@@ -130,16 +130,58 @@ export class Vault {
   }
 
   async listNotes(): Promise<AtomicNote[]> {
+    return (await this.inspectNotes()).notes;
+  }
+
+  async listBroken(): Promise<BrokenNote[]> {
+    return (await this.inspectNotes()).broken;
+  }
+
+  async repairNote(filePath: string, id: string): Promise<void> {
+    const trimmed = id.trim();
+    if (!trimmed || trimmed === 'undefined') {
+      throw new Error('稳定标识不能为空');
+    }
+    const root = this.requirePath();
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(path.join(root, 'notes'))) {
+      throw new Error('只能修复知识库内的笔记');
+    }
+    const raw = await readFile(resolved, 'utf8');
+    const parsed = matter(raw);
+    parsed.data.id = id;
+    await writeFile(resolved, matter.stringify(parsed.content, parsed.data), 'utf8');
+  }
+
+  private async inspectNotes(): Promise<{ notes: AtomicNote[]; broken: BrokenNote[] }> {
     const notes: AtomicNote[] = [];
+    const broken: BrokenNote[] = [];
+    const byId = new Map<string, AtomicNote[]>();
     for (const filePath of await listMarkdown(path.join(this.requirePath(), 'notes'))) {
       try {
-        notes.push(parseNote(await readFile(filePath, 'utf8'), filePath));
+        const note = parseNote(await readFile(filePath, 'utf8'), filePath);
+        if (!note.id || note.id === 'undefined') {
+          broken.push({ path: filePath, reason: 'missing-id' });
+          continue;
+        }
+        const group = byId.get(note.id) ?? [];
+        group.push(note);
+        byId.set(note.id, group);
       } catch {
-        // Skip files that are not readable atomic notes.
+        broken.push({ path: filePath, reason: 'invalid' });
       }
     }
+    for (const [id, group] of byId) {
+      if (group.length > 1) {
+        for (const note of group) {
+          broken.push({ path: note.path, reason: 'duplicate-id', id });
+        }
+        continue;
+      }
+      notes.push(group[0]);
+    }
     notes.sort((a, b) => a.created.localeCompare(b.created));
-    return notes;
+    return { notes, broken };
   }
 
   async listNotesForSource(sourceId: string): Promise<AtomicNote[]> {
@@ -209,18 +251,20 @@ function renderNote(note: AtomicNote): string {
 
 function parseNote(raw: string, filePath: string): AtomicNote {
   const parsed = matter(raw);
-  const data = parsed.data as NoteFrontmatter;
+  const data = parsed.data as Partial<NoteFrontmatter> & Record<string, unknown>;
+  const thought = String(data.thought ?? '');
+  const kind = data.kind === 'excerpt' || data.kind === 'thought_note' ? data.kind : thought.trim() ? 'thought_note' : 'excerpt';
   return {
-    id: String(data.id),
-    kind: data.kind,
-    sourceId: data.source_id ?? null,
-    sourcePosition: data.source_position ?? null,
+    id: data.id == null ? '' : String(data.id),
+    kind,
+    sourceId: (data.source_id as string | null | undefined) ?? null,
+    sourcePosition: (data.source_position as string | null | undefined) ?? null,
     quotation: String(data.quotation ?? ''),
-    thought: String(data.thought ?? ''),
-    created: String(data.created),
-    updated: String(data.updated),
-    provenance: data.provenance,
-    relations: data.relations ?? [],
+    thought,
+    created: String(data.created ?? ''),
+    updated: String(data.updated ?? ''),
+    provenance: data.provenance ?? { quotation: 'source', thought: 'user' },
+    relations: Array.isArray(data.relations) ? data.relations : [],
     path: filePath,
   };
 }

@@ -70,7 +70,7 @@ function toHit(doc: KeywordDoc, query: string): SearchHit {
     sourceId: doc.sourceId,
     partialIndex: doc.partialIndex,
     spineIndex: doc.spineIndex,
-    provenance: doc.kind === 'note' ? 'user' : 'source',
+    provenance: doc.provenance,
   };
   if (doc.noteId) {
     hit.noteId = doc.noteId;
@@ -140,12 +140,12 @@ export class SearchIndex {
     const keywordHits = mode === 'semantic' ? [] : this.keyword.query(trimmed);
     const semanticHits = mode === 'keyword' ? [] : await this.semanticQuery(trimmed);
     if (mode === 'keyword') {
-      return keywordHits;
+      return rankByProvenance(keywordHits);
     }
     if (mode === 'semantic') {
-      return semanticHits;
+      return rankByProvenance(semanticHits);
     }
-    return mergeHits(keywordHits, semanticHits);
+    return rankByProvenance(mergeHits(keywordHits, semanticHits));
   }
 
   private async rebuildKeyword(): Promise<void> {
@@ -196,6 +196,7 @@ export class SearchIndex {
         sourcePosition: note.sourcePosition ?? '',
         spineIndex: parseSpine(note.sourcePosition),
         partialIndex: false,
+        provenance: note.kind === 'thought_note' ? 'user' : 'source',
       });
     }
 
@@ -215,6 +216,7 @@ export class SearchIndex {
               sourcePosition: `pdf:${spineIndex}:0:0:0:0:0:0`,
               spineIndex,
               partialIndex,
+              provenance: 'source',
             });
           });
           continue;
@@ -231,6 +233,7 @@ export class SearchIndex {
             sourcePosition: `web:0:0:0`,
             spineIndex: 0,
             partialIndex: source.indexStatus !== 'ready',
+            provenance: 'source',
           });
           continue;
         }
@@ -250,6 +253,7 @@ export class SearchIndex {
             sourcePosition: `epub:${spineIndex}:0:0`,
             spineIndex,
             partialIndex,
+            provenance: 'source',
           });
         });
       } catch {
@@ -274,6 +278,13 @@ export class SearchIndex {
       .sort((a, b) => b.score - a.score)
       .map((item) => toHit(item.doc, trimmed));
   }
+}
+
+function rankByProvenance(hits: SearchHit[]): SearchHit[] {
+  const order: Record<SearchHit['provenance'], number> = { user: 0, source: 1, ai: 2 };
+  return hits
+    .slice()
+    .sort((a, b) => (order[a.provenance] ?? 9) - (order[b.provenance] ?? 9));
 }
 
 function mergeHits(keywordHits: SearchHit[], semanticHits: SearchHit[]): SearchHit[] {

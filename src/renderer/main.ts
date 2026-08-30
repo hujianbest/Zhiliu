@@ -83,6 +83,19 @@ function rollbackDialog(): HTMLDialogElement {
 }
 
 let pendingRollback: TimelineEntry | null = null;
+let editingNoteId: string | null = null;
+let repairingPath: string | null = null;
+
+function noteEditDialog(): HTMLDialogElement {
+  return document.getElementById('note-edit-dialog') as HTMLDialogElement;
+}
+
+function beginEditNote(note: AtomicNote): void {
+  editingNoteId = note.id;
+  (document.getElementById('note-edit-quotation') as HTMLTextAreaElement).value = note.quotation;
+  (document.getElementById('note-edit-thought') as HTMLTextAreaElement).value = note.thought;
+  noteEditDialog().showModal();
+}
 let thoughtNotes: AtomicNote[] = [];
 
 function formatWhen(iso: string): string {
@@ -120,8 +133,12 @@ function renderThoughtNotes(notes: AtomicNote[]): void {
     const thought = document.createElement('p');
     thought.className = 'source-note-thought';
     thought.textContent = note.thought.trim() === '' ? '（无）' : note.thought;
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.dataset.editNoteId = note.id;
+    edit.textContent = '编辑';
     button.append(kind, quote, thought);
-    item.append(button);
+    item.append(button, edit);
     list.append(item);
   }
 }
@@ -152,9 +169,42 @@ function renderHistory(entries: TimelineEntry[]): void {
 }
 
 async function refreshThoughts(): Promise<void> {
-  const [notes, history] = await Promise.all([window.zhiliu.notes.list(), window.zhiliu.history.list()]);
+  const [notes, history, broken] = await Promise.all([
+    window.zhiliu.notes.list(),
+    window.zhiliu.history.list(),
+    window.zhiliu.notes.broken(),
+  ]);
   renderThoughtNotes(notes);
   renderHistory(history);
+  renderBroken(broken);
+}
+
+function renderBroken(items: { path: string; reason: string; id?: string }[]): void {
+  const list = document.getElementById('broken-list');
+  const empty = document.getElementById('broken-empty');
+  if (!list || !empty) {
+    return;
+  }
+  list.replaceChildren();
+  empty.hidden = items.length > 0;
+  for (const item of items) {
+    const row = document.createElement('li');
+    const label = document.createElement('p');
+    label.textContent = '需要修复';
+    const file = document.createElement('p');
+    file.textContent = item.path.split(/[/\\]/).at(-1) ?? item.path;
+    const reason = document.createElement('p');
+    reason.textContent = item.reason === 'missing-id' ? '缺少稳定标识' : item.reason === 'duplicate-id' ? '标识重复' : '无法读取';
+    const repair = document.createElement('button');
+    repair.type = 'button';
+    repair.dataset.repairPath = item.path;
+    if (item.id) {
+      repair.dataset.repairId = item.id;
+    }
+    repair.textContent = '修复';
+    row.append(label, file, reason, repair);
+    list.append(row);
+  }
 }
 
 function beginRollback(id: string): void {
@@ -753,7 +803,10 @@ function renderSearchHits(hits: SearchHit[]): void {
     const title = document.createElement('span');
     title.className = 'search-title';
     title.textContent = hit.title;
-    button.append(kind, title);
+    const provenance = document.createElement('span');
+    provenance.className = 'search-provenance';
+    provenance.textContent = hit.provenance === 'user' ? '用户' : hit.provenance === 'ai' ? 'AI' : '来源';
+    button.append(kind, title, provenance);
     if (hit.partialIndex) {
       const partial = document.createElement('span');
       partial.className = 'search-partial';
@@ -1099,6 +1152,106 @@ document.getElementById('url-form')?.addEventListener('submit', (event) => {
   });
 });
 
+document.getElementById('import-markdown')?.addEventListener('click', () => {
+  void window.zhiliu.library.importMarkdown().then((report) => {
+    const hint = document.getElementById('markdown-import-hint');
+    if (hint) {
+      hint.textContent = `导入是一次性复制，原文件夹之后的修改不会同步到知流。已复制 ${report.copied} 个文件。`;
+    }
+    void refreshThoughts();
+    void refreshLibrary();
+  });
+});
+
+document.getElementById('note-edit-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (!editingNoteId) {
+    return;
+  }
+  const quotation = (document.getElementById('note-edit-quotation') as HTMLTextAreaElement).value;
+  const thought = (document.getElementById('note-edit-thought') as HTMLTextAreaElement).value;
+  const id = editingNoteId;
+  void window.zhiliu.notes.save({ id, quotation, thought }).then(() => {
+    editingNoteId = null;
+    noteEditDialog().close();
+    void refreshThoughts();
+  });
+});
+document.getElementById('note-edit-cancel')?.addEventListener('click', () => {
+  editingNoteId = null;
+  noteEditDialog().close();
+});
+
+function repairDialog(): HTMLDialogElement {
+  return document.getElementById('repair-dialog') as HTMLDialogElement;
+}
+
+function beginRepair(filePath: string, knownId?: string): void {
+  repairingPath = filePath;
+  (document.getElementById('repair-file') as HTMLElement).textContent = filePath.split(/[/\\]/).at(-1) ?? filePath;
+  (document.getElementById('repair-id') as HTMLInputElement).value = knownId ?? '';
+  repairDialog().showModal();
+  document.getElementById('repair-id')?.focus();
+}
+
+document.getElementById('broken-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>('[data-repair-path]');
+  const filePath = button?.dataset.repairPath;
+  if (!filePath) {
+    return;
+  }
+  beginRepair(filePath, button.dataset.repairId);
+});
+document.getElementById('repair-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (!repairingPath) {
+    return;
+  }
+  const id = (document.getElementById('repair-id') as HTMLInputElement).value.trim();
+  const filePath = repairingPath;
+  void window.zhiliu.notes.repair(filePath, id).then(() => {
+    repairingPath = null;
+    repairDialog().close();
+    void refreshThoughts();
+  });
+});
+document.getElementById('repair-cancel')?.addEventListener('click', () => {
+  repairingPath = null;
+  repairDialog().close();
+});
+
+document.getElementById('agent-analyze')?.addEventListener('click', () => {
+  const status = document.getElementById('agent-status');
+  const result = document.getElementById('agent-result');
+  if (status) {
+    status.textContent = '正在分析…';
+  }
+  void window.zhiliu.agent
+    .analyze()
+    .then((outcome) => {
+      if (status) {
+        status.textContent = outcome.status;
+      }
+      if (result) {
+        result.textContent = outcome.trace.result;
+      }
+    })
+    .catch((error: unknown) => {
+      if (status) {
+        status.textContent = error instanceof Error ? error.message : '分析失败';
+      }
+    });
+});
+
+window.zhiliu.vault.onChanged(() => {
+  void refreshThoughts();
+  void refreshLibrary();
+});
+
 document.getElementById('library-list')?.addEventListener('click', (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
@@ -1226,6 +1379,14 @@ document.getElementById('thoughts-to-library')?.addEventListener('click', () => 
 document.getElementById('thoughts-notes')?.addEventListener('click', (event) => {
   const target = event.target;
   if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const edit = target.closest<HTMLButtonElement>('[data-edit-note-id]');
+  if (edit?.dataset.editNoteId) {
+    const note = thoughtNotes.find((item) => item.id === edit.dataset.editNoteId);
+    if (note) {
+      beginEditNote(note);
+    }
     return;
   }
   const button = target.closest<HTMLButtonElement>('[data-thought-note-id]');
