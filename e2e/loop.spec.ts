@@ -171,15 +171,12 @@ test('提案确认次数等于操作次数；就绪后生成正式稿；删除�
       created.push(await window.zhiliu.notes.save({ quotation: '二', thought: '青瓷提案乙。' }));
       const topics = await window.zhiliu.agent.organize();
       const two = await window.zhiliu.workbench.createProposal(topics[0]!.id);
-      expectReady(two.ready === false);
+      if (two.ready !== false) {
+        throw new Error('两条思想笔记不应就绪');
+      }
       created.push(await window.zhiliu.notes.save({ quotation: '三', thought: '青瓷提案丙。' }));
       await window.zhiliu.agent.organize();
       return created.map((item) => item.id);
-      function expectReady(value: boolean) {
-        if (value !== false) {
-          throw new Error('两条思想笔记不应就绪');
-        }
-      }
     });
     const proposal = await session.window.evaluate(async () => {
       const view = await window.zhiliu.workbench.view();

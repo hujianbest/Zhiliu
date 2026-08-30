@@ -817,7 +817,7 @@ ${revision.text}
 
   private withReady(proposal: ProposalView): ProposalView {
     const thoughts = proposal.evidence.filter((item) => item.kind === 'thought' && item.included);
-    proposal.ready = proposal.thesisConfirmed && thoughts.length >= 3;
+    proposal.ready = Boolean(proposal.thesisConfirmed) && thoughts.length >= 3;
     return proposal;
   }
 

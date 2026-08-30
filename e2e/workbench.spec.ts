@@ -116,14 +116,20 @@ test('手工正式稿预览、定稿才进检索、撤回后不再命中', async
     await session.window.getByLabel('稿件正文').fill(unique);
     await expect(session.window.getByLabel('预览')).toContainText(unique);
     await session.window.getByRole('button', { name: '保存稿件' }).click();
-    const before = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), unique);
-    expect(before.some((hit) => hit.snippet.includes(unique))).toBeFalsy();
+    await expect.poll(async () => {
+      const before = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), unique);
+      return before.some((hit) => hit.snippet.includes(unique));
+    }).toBeFalsy();
     await session.window.getByRole('button', { name: '定稿', exact: true }).click();
-    const after = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), unique);
-    expect(after.some((hit) => hit.kind === 'draft' && hit.snippet.includes(unique))).toBeTruthy();
+    await expect.poll(async () => {
+      const after = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), unique);
+      return after.some((hit) => hit.kind === 'draft' && hit.snippet.includes(unique));
+    }).toBeTruthy();
     await session.window.getByRole('button', { name: '撤回定稿' }).click();
-    const again = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), unique);
-    expect(again.some((hit) => hit.snippet.includes(unique))).toBeFalsy();
+    await expect.poll(async () => {
+      const again = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), unique);
+      return again.some((hit) => hit.snippet.includes(unique));
+    }).toBeFalsy();
   } finally {
     await session.close();
   }
