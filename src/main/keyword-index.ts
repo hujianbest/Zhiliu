@@ -166,30 +166,42 @@ export class KeywordIndex {
     const db = this.requireDb();
     const tx = db.transaction(() => {
       db.exec('DELETE FROM fts_latin; DELETE FROM fts_cjk; DELETE FROM docs;');
-      const insertDoc = db.prepare(`
-        INSERT INTO docs (id, kind, title, text, source_id, note_id, source_position, spine_index, partial_index, provenance)
-        VALUES (@id, @kind, @title, @text, @sourceId, @noteId, @sourcePosition, @spineIndex, @partialIndex, @provenance)
-      `);
-      const insertLatin = db.prepare('INSERT INTO fts_latin (id, title, text) VALUES (?, ?, ?)');
-      const insertCjk = db.prepare('INSERT INTO fts_cjk (id, title, text) VALUES (?, ?, ?)');
-      for (const doc of docs) {
-        insertDoc.run({
-          id: doc.id,
-          kind: doc.kind,
-          title: doc.title,
-          text: doc.text,
-          sourceId: doc.sourceId,
-          noteId: doc.noteId,
-          sourcePosition: doc.sourcePosition,
-          spineIndex: doc.spineIndex,
-          partialIndex: doc.partialIndex ? 1 : 0,
-          provenance: doc.provenance,
-        });
-        insertLatin.run(doc.id, doc.title, doc.text);
-        insertCjk.run(doc.id, doc.title, doc.text);
-      }
+      this.insertDocs(db, docs);
     });
     tx();
+  }
+
+  appendAll(docs: KeywordDoc[]): void {
+    const db = this.requireDb();
+    const tx = db.transaction(() => {
+      this.insertDocs(db, docs);
+    });
+    tx();
+  }
+
+  private insertDocs(db: Database.Database, docs: KeywordDoc[]): void {
+    const insertDoc = db.prepare(`
+      INSERT OR REPLACE INTO docs (id, kind, title, text, source_id, note_id, source_position, spine_index, partial_index, provenance)
+      VALUES (@id, @kind, @title, @text, @sourceId, @noteId, @sourcePosition, @spineIndex, @partialIndex, @provenance)
+    `);
+    const insertLatin = db.prepare('INSERT INTO fts_latin (id, title, text) VALUES (?, ?, ?)');
+    const insertCjk = db.prepare('INSERT INTO fts_cjk (id, title, text) VALUES (?, ?, ?)');
+    for (const doc of docs) {
+      insertDoc.run({
+        id: doc.id,
+        kind: doc.kind,
+        title: doc.title,
+        text: doc.text,
+        sourceId: doc.sourceId,
+        noteId: doc.noteId,
+        sourcePosition: doc.sourcePosition,
+        spineIndex: doc.spineIndex,
+        partialIndex: doc.partialIndex ? 1 : 0,
+        provenance: doc.provenance,
+      });
+      insertLatin.run(doc.id, doc.title, doc.text);
+      insertCjk.run(doc.id, doc.title, doc.text);
+    }
   }
 
   query(raw: string): SearchHit[] {

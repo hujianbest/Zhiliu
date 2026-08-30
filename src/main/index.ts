@@ -112,6 +112,12 @@ ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => {
 ipcMain.handle('notes:get', async (_event, id: string) => vault.getNote(id));
 ipcMain.handle('notes:list', async () => vault.listNotes());
 ipcMain.handle('notes:broken', async () => vault.listBroken());
+ipcMain.handle('notes:conflicts', async () => vault.listConflicts());
+ipcMain.handle('notes:resolveConflict', async (_event, filePath: string, keep: 'disk' | 'incoming') => {
+  await vault.resolveConflict(typeof filePath === 'string' ? filePath : '', keep === 'incoming' ? 'incoming' : 'disk');
+  await search.rebuild();
+  await git.commit('更新一条笔记');
+});
 ipcMain.handle('notes:repair', async (_event, filePath: string, id: string) => {
   await vault.repairNote(filePath, id);
   await search.rebuild();
@@ -131,6 +137,9 @@ ipcMain.handle('search:queryDetailed', async (_event, q: string, options?: Searc
   search.queryDetailed(typeof q === 'string' ? q : '', options),
 );
 ipcMain.handle('search:embedCalls', async () => search.embedCalls());
+ipcMain.handle('search:seedBenchChunks', async (_event, count: number) => {
+  await search.seedBenchChunks(typeof count === 'number' ? count : 0);
+});
 ipcMain.handle('models:view', async () => models.view());
 ipcMain.handle('models:save', async (_event, input: SaveModelSettingsInput) => models.save(input));
 ipcMain.handle(

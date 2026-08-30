@@ -20,11 +20,14 @@ const api: ZhiliuApi = {
     listForSource: (sourceId) => ipcRenderer.invoke('notes:listForSource', sourceId),
     broken: () => ipcRenderer.invoke('notes:broken'),
     repair: (filePath, id) => ipcRenderer.invoke('notes:repair', filePath, id),
+    conflicts: () => ipcRenderer.invoke('notes:conflicts'),
+    resolveConflict: (filePath, keep) => ipcRenderer.invoke('notes:resolveConflict', filePath, keep),
   },
   search: {
     query: (q, options) => ipcRenderer.invoke('search:query', q, options),
     queryDetailed: (q, options) => ipcRenderer.invoke('search:queryDetailed', q, options),
     embedCalls: () => ipcRenderer.invoke('search:embedCalls'),
+    seedBenchChunks: (count) => ipcRenderer.invoke('search:seedBenchChunks', count),
   },
   history: {
     list: () => ipcRenderer.invoke('history:list'),

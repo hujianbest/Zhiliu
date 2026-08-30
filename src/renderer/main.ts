@@ -84,6 +84,7 @@ function rollbackDialog(): HTMLDialogElement {
 
 let pendingRollback: TimelineEntry | null = null;
 let editingNoteId: string | null = null;
+let editingBase: { quotation: string; thought: string } | null = null;
 let repairingPath: string | null = null;
 
 function noteEditDialog(): HTMLDialogElement {
@@ -92,6 +93,7 @@ function noteEditDialog(): HTMLDialogElement {
 
 function beginEditNote(note: AtomicNote): void {
   editingNoteId = note.id;
+  editingBase = { quotation: note.quotation, thought: note.thought };
   (document.getElementById('note-edit-quotation') as HTMLTextAreaElement).value = note.quotation;
   (document.getElementById('note-edit-thought') as HTMLTextAreaElement).value = note.thought;
   noteEditDialog().showModal();
@@ -169,14 +171,16 @@ function renderHistory(entries: TimelineEntry[]): void {
 }
 
 async function refreshThoughts(): Promise<void> {
-  const [notes, history, broken] = await Promise.all([
+  const [notes, history, broken, conflicts] = await Promise.all([
     window.zhiliu.notes.list(),
     window.zhiliu.history.list(),
     window.zhiliu.notes.broken(),
+    window.zhiliu.notes.conflicts(),
   ]);
   renderThoughtNotes(notes);
   renderHistory(history);
   renderBroken(broken);
+  renderConflicts(conflicts);
 }
 
 function renderBroken(items: { path: string; reason: string; id?: string }[]): void {
@@ -203,6 +207,35 @@ function renderBroken(items: { path: string; reason: string; id?: string }[]): v
     }
     repair.textContent = '修复';
     row.append(label, file, reason, repair);
+    list.append(row);
+  }
+}
+
+function renderConflicts(items: { path: string; id: string; quotation: string; thought: string }[]): void {
+  const list = document.getElementById('conflict-list');
+  const empty = document.getElementById('conflict-empty');
+  if (!list || !empty) {
+    return;
+  }
+  list.replaceChildren();
+  empty.hidden = items.length > 0;
+  for (const item of items) {
+    const row = document.createElement('li');
+    const label = document.createElement('p');
+    label.textContent = '冲突副本';
+    const thought = document.createElement('p');
+    thought.textContent = item.thought || item.quotation;
+    const keepDisk = document.createElement('button');
+    keepDisk.type = 'button';
+    keepDisk.dataset.conflictKeep = 'disk';
+    keepDisk.dataset.conflictPath = item.path;
+    keepDisk.textContent = '保留知识库中的版本';
+    const keepIncoming = document.createElement('button');
+    keepIncoming.type = 'button';
+    keepIncoming.dataset.conflictKeep = 'incoming';
+    keepIncoming.dataset.conflictPath = item.path;
+    keepIncoming.textContent = '保留应用内的版本';
+    row.append(label, thought, keepDisk, keepIncoming);
     list.append(row);
   }
 }
@@ -1171,14 +1204,25 @@ document.getElementById('note-edit-form')?.addEventListener('submit', (event) =>
   const quotation = (document.getElementById('note-edit-quotation') as HTMLTextAreaElement).value;
   const thought = (document.getElementById('note-edit-thought') as HTMLTextAreaElement).value;
   const id = editingNoteId;
-  void window.zhiliu.notes.save({ id, quotation, thought }).then(() => {
-    editingNoteId = null;
-    noteEditDialog().close();
-    void refreshThoughts();
-  });
+  const base = editingBase;
+  void window.zhiliu.notes
+    .save({
+      id,
+      quotation,
+      thought,
+      baseQuotation: base?.quotation,
+      baseThought: base?.thought,
+    })
+    .then(() => {
+      editingNoteId = null;
+      editingBase = null;
+      noteEditDialog().close();
+      void refreshThoughts();
+    });
 });
 document.getElementById('note-edit-cancel')?.addEventListener('click', () => {
   editingNoteId = null;
+  editingBase = null;
   noteEditDialog().close();
 });
 
@@ -1205,6 +1249,21 @@ document.getElementById('broken-list')?.addEventListener('click', (event) => {
     return;
   }
   beginRepair(filePath, button.dataset.repairId);
+});
+document.getElementById('conflict-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>('[data-conflict-path]');
+  const filePath = button?.dataset.conflictPath;
+  const keep = button?.dataset.conflictKeep;
+  if (!filePath || (keep !== 'disk' && keep !== 'incoming')) {
+    return;
+  }
+  void window.zhiliu.notes.resolveConflict(filePath, keep).then(() => {
+    void refreshThoughts();
+  });
 });
 document.getElementById('repair-form')?.addEventListener('submit', (event) => {
   event.preventDefault();

@@ -108,6 +108,30 @@ export class SearchIndex {
   async rebuild(): Promise<void> {
     this.vectors.clear();
     await this.rebuildKeyword();
+    void this.embedAll();
+  }
+
+  async seedBenchChunks(count: number): Promise<void> {
+    const docs: KeywordDoc[] = [];
+    for (let i = 0; i < count; i += 1) {
+      docs.push({
+        id: `bench:${i}`,
+        kind: 'epub',
+        title: `规模分块 ${i}`,
+        text: `bench_chunk_${i} scale filler for the two-hundred-thousand chunk budget`,
+        sourceId: `bench-source-${Math.floor(i / 800)}`,
+        noteId: '',
+        sourcePosition: `epub:0:${i}:${i}`,
+        spineIndex: i % 800,
+        partialIndex: false,
+        provenance: 'source',
+      });
+    }
+    this.keyword.appendAll(docs);
+    this.docs.push(...docs);
+  }
+
+  private async embedAll(): Promise<void> {
     for (const doc of this.docs) {
       await this.upsertVector(doc);
     }

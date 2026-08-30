@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
-import type { AtomicNote, BrokenNote, NoteRelation, SaveNoteInput, VaultStatus } from '../shared/api';
+import type { AtomicNote, BrokenNote, NoteConflict, NoteRelation, SaveNoteInput, VaultStatus } from '../shared/api';
 import type { PreferenceStore } from './preferences';
 
 const VAULT_MANIFEST = path.join('.zhiliu', 'vault.json');
@@ -99,6 +99,19 @@ export class Vault {
         relations: input.relations ?? existing.relations,
         updated: now,
       };
+      const diskRaw = await readFile(existing.path, 'utf8');
+      const disk = parseNote(diskRaw, existing.path);
+      const baseQuotation = input.baseQuotation;
+      const baseThought = input.baseThought;
+      const concurrent =
+        baseQuotation !== undefined &&
+        baseThought !== undefined &&
+        (disk.quotation !== baseQuotation || disk.thought !== baseThought);
+      if (concurrent) {
+        const conflictPath = conflictPathFor(existing.path);
+        await writeFile(conflictPath, renderNote({ ...note, path: conflictPath }), 'utf8');
+        return { ...note, path: conflictPath };
+      }
       await writeFile(note.path, renderNote(note), 'utf8');
       return note;
     }
@@ -137,6 +150,36 @@ export class Vault {
     return (await this.inspectNotes()).broken;
   }
 
+  async listConflicts(): Promise<NoteConflict[]> {
+    const conflicts: NoteConflict[] = [];
+    for (const filePath of await listMarkdown(path.join(this.requirePath(), 'notes'))) {
+      if (!isConflictPath(filePath)) {
+        continue;
+      }
+      try {
+        const note = parseNote(await readFile(filePath, 'utf8'), filePath);
+        conflicts.push({ path: filePath, id: note.id, quotation: note.quotation, thought: note.thought });
+      } catch {
+        conflicts.push({ path: filePath, id: '', quotation: '', thought: '' });
+      }
+    }
+    return conflicts;
+  }
+
+  async resolveConflict(filePath: string, keep: 'disk' | 'incoming'): Promise<void> {
+    const root = this.requirePath();
+    const resolved = path.resolve(filePath);
+    if (!resolved.startsWith(path.join(root, 'notes')) || !isConflictPath(resolved)) {
+      throw new Error('只能处理知识库内的冲突副本');
+    }
+      if (keep === 'incoming') {
+      const incoming = await readFile(resolved, 'utf8');
+      const target = resolved.replace(/\.conflict\.md$/, '.md');
+      await writeFile(target, incoming, 'utf8');
+    }
+    await unlink(resolved);
+  }
+
   async repairNote(filePath: string, id: string): Promise<void> {
     const trimmed = id.trim();
     if (!trimmed || trimmed === 'undefined') {
@@ -158,6 +201,9 @@ export class Vault {
     const broken: BrokenNote[] = [];
     const byId = new Map<string, AtomicNote[]>();
     for (const filePath of await listMarkdown(path.join(this.requirePath(), 'notes'))) {
+      if (isConflictPath(filePath) || isRevisionPath(filePath)) {
+        continue;
+      }
       try {
         const note = parseNote(await readFile(filePath, 'utf8'), filePath);
         if (!note.id || note.id === 'undefined') {
@@ -204,6 +250,9 @@ export class Vault {
 
   private async findNoteFile(id: string): Promise<string | null> {
     for (const filePath of await listMarkdown(path.join(this.requirePath(), 'notes'))) {
+      if (isConflictPath(filePath) || isRevisionPath(filePath)) {
+        continue;
+      }
       const parsed = matter(await readFile(filePath, 'utf8'));
       if (parsed.data.id === id) {
         return filePath;
@@ -230,6 +279,18 @@ async function listMarkdown(root: string): Promise<string[]> {
     }
   }
   return found;
+}
+
+function isConflictPath(filePath: string): boolean {
+  return filePath.endsWith('.conflict.md');
+}
+
+function isRevisionPath(filePath: string): boolean {
+  return filePath.endsWith('.revision.md');
+}
+
+function conflictPathFor(filePath: string): string {
+  return filePath.replace(/\.md$/, '.conflict.md');
 }
 
 function renderNote(note: AtomicNote): string {

@@ -27,6 +27,8 @@ export type SaveNoteInput = {
   sourceId?: string;
   sourcePosition?: string;
   relations?: NoteRelation[];
+  baseQuotation?: string;
+  baseThought?: string;
 };
 
 export type VaultStatus = {
@@ -151,6 +153,13 @@ export type EmbedCall = {
   id: string;
 };
 
+export type NoteConflict = {
+  path: string;
+  id: string;
+  quotation: string;
+  thought: string;
+};
+
 export type BrokenNote = {
   path: string;
   reason: 'missing-id' | 'duplicate-id' | 'invalid';
@@ -189,11 +198,14 @@ export type ZhiliuApi = {
     listForSource(sourceId: string): Promise<AtomicNote[]>;
     broken(): Promise<BrokenNote[]>;
     repair(filePath: string, id: string): Promise<void>;
+    conflicts(): Promise<NoteConflict[]>;
+    resolveConflict(filePath: string, keep: 'disk' | 'incoming'): Promise<void>;
   };
   search: {
     query(q: string, options?: SearchQueryOptions): Promise<SearchHit[]>;
     queryDetailed(q: string, options?: SearchQueryOptions): Promise<SearchQueryResult>;
     embedCalls(): Promise<EmbedCall[]>;
+    seedBenchChunks(count: number): Promise<void>;
   };
   history: {
     list(): Promise<TimelineEntry[]>;

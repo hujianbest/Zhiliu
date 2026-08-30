@@ -481,6 +481,7 @@ dialog button:focus-visible,
 #import-markdown:focus-visible,
 #agent-analyze:focus-visible,
 #broken-list button:focus-visible,
+#conflict-list button:focus-visible,
 #thoughts-to-library:focus-visible,
 #thoughts-notes button:focus-visible,
 #history-list button:focus-visible,
@@ -535,9 +536,25 @@ dialog button:focus-visible,
   background: var(--color-paper-raised);
 }
 
-#broken-empty {
+#broken-empty,
+#conflict-empty {
   margin: 0 0 var(--space-4);
   color: var(--color-ink-muted);
+}
+
+#conflict-list {
+  list-style: none;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+}
+
+#conflict-list li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
 }
 
 dialog button,
