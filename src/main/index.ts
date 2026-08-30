@@ -8,6 +8,7 @@ import { ModelSettings } from './models';
 import { PreferenceStore } from './preferences';
 import { Reading } from './reading';
 import { SearchIndex } from './search';
+import { UtilityWorkerHost } from './utility-host';
 import { Vault } from './vault';
 
 if (process.env.ZHILIU_USER_DATA) {
@@ -28,6 +29,13 @@ const library = new Library(vault, process.env);
 const reading = new Reading(library, preferences);
 const search = new SearchIndex(vault, library, createEmbeddingAdapter(process.env));
 const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
+let utilityWorker: UtilityWorkerHost | null = null;
+(globalThis as { __zhiliuPingWorker?: () => Promise<boolean> }).__zhiliuPingWorker = () => {
+  if (!utilityWorker) {
+    return Promise.reject(new Error('utilityProcess 尚未启动'));
+  }
+  return utilityWorker.ping();
+};
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -125,6 +133,7 @@ ipcMain.handle('library:import', async () => {
 });
 
 app.whenReady().then(async () => {
+  utilityWorker = new UtilityWorkerHost();
   await vault.openFromEnvironment();
   await search.rebuild();
   createWindow();

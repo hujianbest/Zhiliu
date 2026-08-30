@@ -19,7 +19,18 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron', 'keytar', 'onnxruntime-node'],
+    external: ['electron', 'keytar', 'onnxruntime-node', 'better-sqlite3'],
+    logLevel: 'info',
+  }),
+  esbuild.build({
+    absWorkingDir: root,
+    entryPoints: ['src/main/utility-worker.ts'],
+    outfile: 'dist/main/utility-worker.cjs',
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+    external: ['electron'],
     logLevel: 'info',
   }),
   esbuild.build({
@@ -30,7 +41,7 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron', 'keytar', 'onnxruntime-node'],
+    external: ['electron', 'keytar', 'onnxruntime-node', 'better-sqlite3'],
     logLevel: 'info',
   }),
   esbuild.build({

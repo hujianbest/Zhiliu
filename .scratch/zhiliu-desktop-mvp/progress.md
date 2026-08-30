@@ -3,4 +3,4 @@
 - 当前阶段: implement
 - 执行模式: auto
 - 已加载: hf-ui-design
-- 下一步: 实现票 06（Windows 与 macOS 安装包）；票 09 的 FTS5 与票 12 的 BM25/bekko 尚未按评审后规格改写
+- 下一步: 实现票 06（Windows 与 macOS 安装包）后继续剩余前沿票；票 14 按 ADR-0009 留在 needs-triage

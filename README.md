@@ -1,2 +1,17 @@
 # Zhiliu
-知流 Zhiliu 是一款面向 AI 时代的桌面知识工作台，集智能阅读、笔记沉淀与内容创作为一体。它帮助你高效获取和理解信息，随时捕捉思想火花，将零散知识连接成体系，并进一步转化为文章、脚本与视频等作品。让知识从输入、思考到输出自然流动，成为你的第二大脑。
+
+知流是本地优先的桌面知识工作台。阅读产生自己的想法，想法积成主题，主题变成可以诚实署上自己名字的文章。
+
+## 开发
+
+```bash
+npm install
+npm test          # 打包当前平台的未打包目录，再用 Playwright 驱动该二进制
+npm run dev       # 未打包的开发启动
+npm run pack:dir  # 只产出供测试用的安装布局
+npm run pack      # 当前平台的可分发产物
+```
+
+Windows 与 macOS 的安装包、安全警告与自签证书流程见 `docs/packaging.md` 与 `docs/codesign-certificate.md`。首个版本没有付费签名、公证与自动更新，**不是**消费级顺畅的安装体验。
+
+端到端断言范围见 `docs/e2e-assertions.md`。最低支持系统见 `docs/supported-platforms.md`（随 Electron 大版本推导，不手写死）。
