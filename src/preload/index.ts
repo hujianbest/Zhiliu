@@ -11,6 +11,9 @@ const api: ZhiliuApi = {
     get: (id: string) => ipcRenderer.invoke('notes:get', id),
     listForSource: (sourceId) => ipcRenderer.invoke('notes:listForSource', sourceId),
   },
+  search: {
+    query: (q: string) => ipcRenderer.invoke('search:query', q),
+  },
   models: {
     view: () => ipcRenderer.invoke('models:view'),
     save: (input: SaveModelSettingsInput) => ipcRenderer.invoke('models:save', input),

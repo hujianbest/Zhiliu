@@ -111,20 +111,21 @@ export class Vault {
     return parseNote(await readFile(filePath, 'utf8'), filePath);
   }
 
-  async listNotesForSource(sourceId: string): Promise<AtomicNote[]> {
+  async listNotes(): Promise<AtomicNote[]> {
     const notes: AtomicNote[] = [];
     for (const filePath of await listMarkdown(path.join(this.requirePath(), 'notes'))) {
       try {
-        const note = parseNote(await readFile(filePath, 'utf8'), filePath);
-        if (note.sourceId === sourceId) {
-          notes.push(note);
-        }
+        notes.push(parseNote(await readFile(filePath, 'utf8'), filePath));
       } catch {
         // Skip files that are not readable atomic notes.
       }
     }
     notes.sort((a, b) => a.created.localeCompare(b.created));
     return notes;
+  }
+
+  async listNotesForSource(sourceId: string): Promise<AtomicNote[]> {
+    return (await this.listNotes()).filter((note) => note.sourceId === sourceId);
   }
 
   private async remember(): Promise<void> {

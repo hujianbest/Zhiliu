@@ -47,6 +47,10 @@ body {
   height: 100%;
 }
 
+.shell[hidden] {
+  display: none;
+}
+
 .spaces {
   display: flex;
   flex-direction: column;
@@ -341,7 +345,7 @@ textarea {
   outline-offset: 2px;
 }
 
-#open-settings {
+#open-search {
   margin-top: auto;
 }
 
@@ -458,6 +462,7 @@ input {
 input:focus-visible,
 textarea:focus-visible,
 dialog button:focus-visible,
+#open-search:focus-visible,
 #open-settings:focus-visible,
 #agent-open-settings:focus-visible,
 #import-epub:focus-visible,
@@ -468,6 +473,9 @@ dialog button:focus-visible,
 #reader-read-flag:focus-visible,
 #reader-capture:focus-visible,
 #toc-close:focus-visible,
+#search-close:focus-visible,
+#search-query:focus-visible,
+#search-results button:focus-visible,
 #reader-notes-list button:focus-visible,
 #capture-thought:focus-visible,
 .source-title:focus-visible {
@@ -527,4 +535,54 @@ dialog button,
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+#search-empty {
+  margin: 0 0 var(--space-4);
+  color: var(--color-ink-muted);
+}
+
+#search-results {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  max-height: 24rem;
+  overflow: auto;
+}
+
+#search-results li + li {
+  margin-top: var(--space-2);
+}
+
+#search-results button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-kind,
+.search-partial {
+  color: var(--color-ink-muted);
+}
+
+.search-kind {
+  margin-right: var(--space-2);
+}
+
+.search-partial {
+  margin-left: var(--space-2);
+}
+
+.search-snippet {
+  margin: var(--space-1) 0 0;
+  color: var(--color-ink-muted);
 }

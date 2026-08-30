@@ -1,4 +1,4 @@
-import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SourceDocument, TocEntry } from '../shared/api';
+import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SearchHit, SearchKind, SourceDocument, TocEntry } from '../shared/api';
 
 const spaces = ['library', 'thoughts', 'creation'] as const;
 type Space = (typeof spaces)[number];
@@ -29,6 +29,16 @@ let lastSelection: CaptureRange | null = null;
 let captureDraft: CaptureDraft | null = null;
 let pendingHighlight: HighlightTarget | null = null;
 let sourceNotes: AtomicNote[] = [];
+let searchHits: SearchHit[] = [];
+let lastSearchQuery = '';
+let searchSeq = 0;
+
+const searchKindCopy: Record<SearchKind, string> = {
+  epub: '书籍',
+  note: '笔记',
+  article: '文章',
+  draft: '草稿',
+};
 
 type CaptureRange = {
   quotation: string;
@@ -230,7 +240,7 @@ function onReaderKey(event: KeyboardEvent): void {
   if (!isReading() || event.altKey || event.ctrlKey || event.metaKey) {
     return;
   }
-  if (settingsDialog().open || captureDialog().open || isTextEntry(event)) {
+  if (settingsDialog().open || captureDialog().open || searchDialog().open || isTextEntry(event)) {
     return;
   }
   if (event.shiftKey && (event.key === 'R' || event.key === 'r')) {
@@ -263,6 +273,7 @@ function bindFrameKeys(frame: HTMLIFrameElement): void {
   }
   doc.addEventListener('keydown', onReaderKey);
   doc.addEventListener('keydown', onCaptureShortcut);
+  doc.addEventListener('keydown', onSearchShortcut);
   doc.addEventListener('selectionchange', () => {
     const range = readSelection(doc);
     if (range) {
@@ -277,6 +288,20 @@ function captureDialog(): HTMLDialogElement {
 
 function captureThought(): HTMLTextAreaElement {
   return document.getElementById('capture-thought') as HTMLTextAreaElement;
+}
+
+function onSearchShortcut(event: KeyboardEvent): void {
+  if (event.altKey || event.shiftKey) {
+    return;
+  }
+  if (!(event.ctrlKey || event.metaKey)) {
+    return;
+  }
+  if (event.key !== 'k' && event.key !== 'K') {
+    return;
+  }
+  event.preventDefault();
+  openSearch();
 }
 
 function onCaptureShortcut(event: KeyboardEvent): void {
@@ -343,7 +368,7 @@ function showCaptureHint(message: string): void {
 }
 
 function beginCapture(): void {
-  if (!isReading() || !currentSourceId || captureDialog().open || settingsDialog().open || tocDialog().open) {
+  if (!isReading() || !currentSourceId || captureDialog().open || settingsDialog().open || tocDialog().open || searchDialog().open) {
     return;
   }
   const range = currentCaptureRange();
@@ -509,6 +534,138 @@ async function jumpToSourceNote(note: AtomicNote): Promise<void> {
   showReading(await window.zhiliu.library.jump(parsed.spineIndex));
 }
 
+function appReady(): boolean {
+  const shell = document.getElementById('app-shell');
+  return Boolean(shell && !shell.hidden);
+}
+
+function searchDialog(): HTMLDialogElement {
+  return document.getElementById('search') as HTMLDialogElement;
+}
+
+function searchQuery(): HTMLInputElement {
+  return document.getElementById('search-query') as HTMLInputElement;
+}
+
+function openSearch(): void {
+  if (!appReady()) {
+    return;
+  }
+  const dialog = searchDialog();
+  if (dialog.open) {
+    searchQuery().focus();
+    return;
+  }
+  searchQuery().value = '';
+  lastSearchQuery = '';
+  renderSearchHits([]);
+  const empty = document.getElementById('search-empty');
+  if (empty) {
+    empty.hidden = true;
+  }
+  dialog.showModal();
+  searchQuery().focus();
+}
+
+function closeSearch(): void {
+  const dialog = searchDialog();
+  if (dialog.open) {
+    dialog.close();
+  }
+}
+
+function renderSearchHits(hits: SearchHit[]): void {
+  searchHits = hits;
+  const list = document.getElementById('search-results');
+  const empty = document.getElementById('search-empty');
+  if (!list || !empty) {
+    return;
+  }
+  list.replaceChildren();
+  const querying = searchQuery().value.trim();
+  empty.hidden = querying === '' || hits.length > 0;
+  hits.forEach((hit, index) => {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.hitIndex = String(index);
+    const kind = document.createElement('span');
+    kind.className = 'search-kind';
+    kind.textContent = searchKindCopy[hit.kind];
+    const title = document.createElement('span');
+    title.className = 'search-title';
+    title.textContent = hit.title;
+    button.append(kind, title);
+    if (hit.partialIndex) {
+      const partial = document.createElement('span');
+      partial.className = 'search-partial';
+      partial.textContent = '部分索引';
+      button.append(partial);
+    }
+    const snippet = document.createElement('p');
+    snippet.className = 'search-snippet';
+    snippet.textContent = hit.snippet;
+    button.append(snippet);
+    item.append(button);
+    list.append(item);
+  });
+}
+
+async function runSearch(): Promise<void> {
+  const q = searchQuery().value;
+  lastSearchQuery = q.trim();
+  const seq = ++searchSeq;
+  const list = document.getElementById('search-results');
+  list?.setAttribute('aria-busy', 'true');
+  const hits = await window.zhiliu.search.query(q);
+  if (seq !== searchSeq) {
+    return;
+  }
+  list?.setAttribute('aria-busy', 'false');
+  renderSearchHits(hits);
+}
+
+async function revealNote(note: AtomicNote): Promise<void> {
+  if (!note.sourceId) {
+    return;
+  }
+  if (isReading() && currentSourceId === note.sourceId) {
+    await jumpToSourceNote(note);
+    return;
+  }
+  const parsed = parseSourcePosition(note.sourcePosition);
+  pendingHighlight = parsed
+    ? { quotation: note.quotation, start: parsed.start, end: parsed.end }
+    : { quotation: note.quotation, start: -1, end: -1 };
+  let view = await window.zhiliu.library.open(note.sourceId);
+  if (parsed && view.spineIndex !== parsed.spineIndex) {
+    view = await window.zhiliu.library.jump(parsed.spineIndex);
+  }
+  showReading(view);
+}
+
+async function openSearchHit(hit: SearchHit): Promise<void> {
+  closeSearch();
+  showSpace('library');
+  if (hit.kind === 'note' && hit.noteId) {
+    const note = await window.zhiliu.notes.get(hit.noteId);
+    if (!note) {
+      return;
+    }
+    await revealNote(note);
+    return;
+  }
+  if (!hit.sourceId) {
+    return;
+  }
+  pendingHighlight = { quotation: lastSearchQuery, start: -1, end: -1 };
+  let view = await window.zhiliu.library.open(hit.sourceId);
+  if (hit.spineIndex !== undefined && view.spineIndex !== hit.spineIndex) {
+    view = await window.zhiliu.library.jump(hit.spineIndex);
+  }
+  showReading(view);
+}
+
 async function turnReading(direction: 'prev' | 'next'): Promise<void> {
   if (!isReading()) {
     return;
@@ -640,6 +797,9 @@ function showLibraryList(): void {
   if (captureDialog().open) {
     captureDialog().close();
   }
+  if (searchDialog().open) {
+    searchDialog().close();
+  }
   currentSourceId = null;
   currentSpineIndex = 0;
   lastSelection = null;
@@ -677,6 +837,12 @@ window.addEventListener('keydown', (event) => {
   if (event.key === ',') {
     event.preventDefault();
     void openSettings();
+    return;
+  }
+
+  if (event.key === 'k' || event.key === 'K') {
+    event.preventDefault();
+    openSearch();
     return;
   }
 
@@ -794,6 +960,35 @@ document.getElementById('capture-cancel')?.addEventListener('click', () => {
 document.getElementById('capture-dialog')?.addEventListener('close', () => {
   captureDraft = null;
   document.getElementById('reader-capture')?.focus();
+});
+
+document.getElementById('open-search')?.addEventListener('click', () => {
+  openSearch();
+});
+document.getElementById('search-close')?.addEventListener('click', () => {
+  closeSearch();
+});
+document.getElementById('search-query')?.addEventListener('input', () => {
+  void runSearch();
+});
+document.getElementById('search-results')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>('[data-hit-index]');
+  const raw = button?.dataset.hitIndex;
+  if (raw === undefined) {
+    return;
+  }
+  const hit = searchHits[Number(raw)];
+  if (!hit) {
+    return;
+  }
+  void openSearchHit(hit);
+});
+document.getElementById('search')?.addEventListener('close', () => {
+  document.getElementById('open-search')?.focus();
 });
 
 document.getElementById('choose-vault')?.addEventListener('click', () => {

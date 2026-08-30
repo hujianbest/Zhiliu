@@ -109,6 +109,19 @@ export type ReadingView = {
   spineIndex: number;
 };
 
+export type SearchKind = 'epub' | 'note' | 'article' | 'draft';
+
+export type SearchHit = {
+  kind: SearchKind;
+  title: string;
+  snippet: string;
+  sourceId: string;
+  noteId?: string;
+  sourcePosition?: string;
+  spineIndex?: number;
+  partialIndex: boolean;
+};
+
 export type ZhiliuApi = {
   vault: {
     current(): Promise<VaultStatus>;
@@ -118,6 +131,9 @@ export type ZhiliuApi = {
     save(input: SaveNoteInput): Promise<AtomicNote>;
     get(id: string): Promise<AtomicNote | null>;
     listForSource(sourceId: string): Promise<AtomicNote[]>;
+  };
+  search: {
+    query(q: string): Promise<SearchHit[]>;
   };
   models: {
     view(): Promise<ModelSettingsView>;

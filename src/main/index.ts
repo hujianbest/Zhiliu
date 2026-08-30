@@ -6,6 +6,7 @@ import { Library } from './library';
 import { ModelSettings } from './models';
 import { PreferenceStore } from './preferences';
 import { Reading } from './reading';
+import { SearchIndex } from './search';
 import { Vault } from './vault';
 
 if (process.env.ZHILIU_USER_DATA) {
@@ -24,6 +25,7 @@ const preferences = new PreferenceStore(app.getPath('userData'));
 const vault = new Vault(preferences, process.env);
 const library = new Library(vault, process.env);
 const reading = new Reading(library, preferences);
+const search = new SearchIndex(vault, library);
 const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
 
 function createWindow(): void {
@@ -55,7 +57,9 @@ ipcMain.handle('vault:current', async () => vault.current());
 ipcMain.handle('vault:choose', async () => {
   const stub = vault.stubbedChoice();
   if (stub) {
-    return vault.use(stub);
+    const status = await vault.use(stub);
+    await search.rebuild();
+    return status;
   }
   const picked = await dialog.showOpenDialog({
     title: '选择知识库位置',
@@ -64,12 +68,19 @@ ipcMain.handle('vault:choose', async () => {
   if (picked.canceled || picked.filePaths.length === 0) {
     return vault.current();
   }
-  return vault.use(picked.filePaths[0]);
+  const status = await vault.use(picked.filePaths[0]);
+  await search.rebuild();
+  return status;
 });
 
-ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => vault.saveNote(input));
+ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => {
+  const note = await vault.saveNote(input);
+  await search.rebuild();
+  return note;
+});
 ipcMain.handle('notes:get', async (_event, id: string) => vault.getNote(id));
 ipcMain.handle('notes:listForSource', async (_event, sourceId: string) => vault.listNotesForSource(sourceId));
+ipcMain.handle('search:query', async (_event, q: string) => search.query(typeof q === 'string' ? q : ''));
 ipcMain.handle('models:view', async () => models.view());
 ipcMain.handle('models:save', async (_event, input: SaveModelSettingsInput) => models.save(input));
 ipcMain.handle(
@@ -92,7 +103,9 @@ ipcMain.handle('library:recordAgentLook', async (_event, sourceId: string) =>
 ipcMain.handle('library:import', async () => {
   const stub = library.stubbedFiles();
   if (stub) {
-    return library.importPaths(stub);
+    const result = await library.importPaths(stub);
+    await search.rebuild();
+    return result;
   }
   const picked = await dialog.showOpenDialog({
     title: '导入 EPUB',
@@ -102,11 +115,14 @@ ipcMain.handle('library:import', async () => {
   if (picked.canceled || picked.filePaths.length === 0) {
     return { sources: await library.list(), failures: [] };
   }
-  return library.importPaths(picked.filePaths);
+  const result = await library.importPaths(picked.filePaths);
+  await search.rebuild();
+  return result;
 });
 
 app.whenReady().then(async () => {
   await vault.openFromEnvironment();
+  await search.rebuild();
   createWindow();
 });
 
