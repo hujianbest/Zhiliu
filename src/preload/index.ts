@@ -15,6 +15,10 @@ const api: ZhiliuApi = {
     save: (input: SaveModelSettingsInput) => ipcRenderer.invoke('models:save', input),
     probe: (input) => ipcRenderer.invoke('models:probe', input),
   },
+  library: {
+    list: () => ipcRenderer.invoke('library:list'),
+    importEpubs: () => ipcRenderer.invoke('library:import'),
+  },
 };
 
 contextBridge.exposeInMainWorld('zhiliu', api);

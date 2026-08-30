@@ -11,6 +11,7 @@ export type LaunchOptions = {
   vaultPath?: string | null;
   userDataPath?: string;
   chooseDirectory?: string;
+  chooseFiles?: string[];
   preserveUserData?: boolean;
   preserveVault?: boolean;
 };
@@ -46,6 +47,10 @@ export async function launchZhiliu(options: LaunchOptions = {}): Promise<ZhiliuS
 
   if (options.chooseDirectory) {
     env.ZHILIU_CHOOSE_DIRECTORY = options.chooseDirectory;
+  }
+
+  if (options.chooseFiles && options.chooseFiles.length > 0) {
+    env.ZHILIU_CHOOSE_FILES = JSON.stringify(options.chooseFiles);
   }
 
   const app = await electron.launch({

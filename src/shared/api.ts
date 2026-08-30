@@ -64,6 +64,29 @@ export type SaveModelSettingsInput = {
   deep: SaveModelRoleInput;
 };
 
+export type IndexStatus = 'pending' | 'indexing' | 'ready' | 'error';
+
+export type SourceKind = 'epub';
+
+export type SourceDocument = {
+  id: string;
+  kind: SourceKind;
+  title: string;
+  authors: string[];
+  indexStatus: IndexStatus;
+  originalFilename: string;
+};
+
+export type ImportFailure = {
+  filename: string;
+  message: string;
+};
+
+export type ImportResult = {
+  sources: SourceDocument[];
+  failures: ImportFailure[];
+};
+
 export type ZhiliuApi = {
   vault: {
     current(): Promise<VaultStatus>;
@@ -77,5 +100,9 @@ export type ZhiliuApi = {
     view(): Promise<ModelSettingsView>;
     save(input: SaveModelSettingsInput): Promise<ModelSettingsView>;
     probe(input: { baseUrl: string; apiKey: string; role?: ModelRole }): Promise<ProbeOutcome>;
+  };
+  library: {
+    list(): Promise<SourceDocument[]>;
+    importEpubs(): Promise<ImportResult>;
   };
 };

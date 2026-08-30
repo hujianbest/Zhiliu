@@ -62,6 +62,8 @@ export class Vault {
         'utf8',
       );
     }
+    await writeVaultGitignore(vaultPath);
+    await ensureLibraryFile(vaultPath);
     this.path = vaultPath;
     await this.remember();
     return this.current();
@@ -186,4 +188,30 @@ function parseNote(raw: string, filePath: string): AtomicNote {
     relations: data.relations ?? [],
     path: filePath,
   };
+}
+
+const VAULT_GITIGNORE = [
+  '# Source binaries and rebuildable artefacts. Knowledge text stays tracked.',
+  '*.epub',
+  '*.pdf',
+  '.zhiliu/cache/',
+  '',
+].join('\n');
+
+async function writeVaultGitignore(vaultPath: string): Promise<void> {
+  const gitignorePath = path.join(vaultPath, '.gitignore');
+  try {
+    await readFile(gitignorePath, 'utf8');
+  } catch {
+    await writeFile(gitignorePath, VAULT_GITIGNORE, 'utf8');
+  }
+}
+
+async function ensureLibraryFile(vaultPath: string): Promise<void> {
+  const libraryPath = path.join(vaultPath, '.zhiliu', 'library.json');
+  try {
+    await readFile(libraryPath, 'utf8');
+  } catch {
+    await writeFile(libraryPath, `${JSON.stringify({ version: 1, sources: [] }, null, 2)}\n`, 'utf8');
+  }
 }

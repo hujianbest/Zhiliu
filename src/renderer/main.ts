@@ -1,4 +1,4 @@
-import type { ModelRole, ModelSettingsView, ProbeResult } from '../shared/api';
+import type { ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, SourceDocument } from '../shared/api';
 
 const spaces = ['library', 'thoughts', 'creation'] as const;
 type Space = (typeof spaces)[number];
@@ -7,6 +7,13 @@ const probeCopy: Record<ProbeResult, string> = {
   ok: '连通成功',
   unauthorized: '凭据无效',
   unreachable: '端点不可达',
+};
+
+const indexCopy: Record<IndexStatus, string> = {
+  pending: '待索引',
+  indexing: '索引中',
+  ready: '已索引',
+  error: '索引失败',
 };
 
 function isSpace(value: string | null): value is Space {
@@ -67,6 +74,52 @@ function fillSettings(view: ModelSettingsView): void {
   input('deep-api-key').placeholder = view.deep.hasKey ? '已保存' : '';
 }
 
+function renderLibrary(sources: SourceDocument[]): void {
+  const list = document.getElementById('library-list');
+  const empty = document.getElementById('library-empty');
+  if (!list || !empty) {
+    return;
+  }
+  list.replaceChildren();
+  empty.hidden = sources.length > 0;
+  for (const source of sources) {
+    const item = document.createElement('li');
+    const title = document.createElement('p');
+    title.className = 'source-title';
+    title.textContent = source.title;
+    item.append(title);
+    if (source.authors.length > 0) {
+      const authors = document.createElement('p');
+      authors.className = 'source-authors';
+      authors.textContent = source.authors.join('、');
+      item.append(authors);
+    }
+    const status = document.createElement('p');
+    status.className = 'source-index';
+    status.textContent = indexCopy[source.indexStatus];
+    item.append(status);
+    list.append(item);
+  }
+}
+
+async function refreshLibrary(): Promise<void> {
+  renderLibrary(await window.zhiliu.library.list());
+}
+
+function showLibraryFailures(result: ImportResult['failures']): void {
+  const alert = document.getElementById('library-error');
+  if (!alert) {
+    return;
+  }
+  if (result.length === 0) {
+    alert.hidden = true;
+    alert.textContent = '';
+    return;
+  }
+  alert.hidden = false;
+  alert.textContent = result.map((failure) => `${failure.filename}：${failure.message}`).join(' ');
+}
+
 async function openSettings(): Promise<void> {
   fillSettings(await window.zhiliu.models.view());
   document.getElementById('settings-saved')!.textContent = '';
@@ -107,10 +160,18 @@ window.addEventListener('keydown', (event) => {
   showSpace(space);
 });
 
+document.getElementById('import-epub')?.addEventListener('click', () => {
+  void window.zhiliu.library.importEpubs().then((result) => {
+    renderLibrary(result.sources);
+    showLibraryFailures(result.failures);
+  });
+});
+
 document.getElementById('choose-vault')?.addEventListener('click', () => {
   void window.zhiliu.vault.choose().then((status) => {
     if (!status.firstRun) {
       showApp(false);
+      void refreshLibrary();
     }
   });
 });
@@ -171,5 +232,6 @@ void window.zhiliu.vault.current().then((status) => {
   showApp(status.firstRun);
   if (!status.firstRun) {
     void refreshAgent();
+    void refreshLibrary();
   }
 });

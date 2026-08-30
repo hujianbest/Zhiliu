@@ -158,6 +158,56 @@ body {
   margin-top: auto;
 }
 
+#import-epub {
+  appearance: none;
+  min-height: 44px;
+  margin-top: var(--space-5);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+#library-list {
+  list-style: none;
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  max-width: 36rem;
+}
+
+#library-list li {
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--color-rule);
+}
+
+#library-list li p {
+  margin: 0;
+}
+
+.source-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.source-authors,
+.source-index,
+#library-empty {
+  margin: var(--space-1) 0 0;
+  color: var(--color-ink-muted);
+}
+
+#library-error {
+  margin: var(--space-4) 0 0;
+  color: var(--color-ink);
+}
+
+#library-empty {
+  margin-top: var(--space-5);
+}
+
 dialog {
   width: min(36rem, calc(100% - 2rem));
   max-height: calc(100% - 2rem);
@@ -210,7 +260,8 @@ input {
 input:focus-visible,
 dialog button:focus-visible,
 #open-settings:focus-visible,
-#agent-open-settings:focus-visible {
+#agent-open-settings:focus-visible,
+#import-epub:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
 }
