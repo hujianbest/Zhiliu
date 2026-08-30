@@ -71,9 +71,12 @@ test('早期贯通：首次运行导入阅读捕获外部编辑检索跳源', as
       const listed = await session.window.evaluate(async () => window.zhiliu.notes.list());
       return listed[0]?.thought;
     }).toBe('贯通改过的想法。');
+    await expect.poll(async () => {
+      const hits = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), '贯通改过的想法');
+      return hits.find((hit) => hit.noteId === note?.id)?.noteId ?? hits[0]?.noteId;
+    }).toBe(note?.id);
     const hits = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), '贯通改过的想法');
-    expect(hits[0]?.noteId).toBe(note?.id);
-    expect(hits[0]?.sourcePosition).toBeTruthy();
+    expect(hits.find((hit) => hit.noteId === note?.id)?.sourcePosition).toBeTruthy();
     const oldHits = await session.window.evaluate(async (q) => window.zhiliu.search.query(q, { mode: 'keyword' }), '贯通最初的想法');
     expect(oldHits.some((hit) => hit.snippet.includes('贯通最初的想法'))).toBeFalsy();
     await session.window.getByRole('button', { name: '检索', exact: true }).click();

@@ -51,7 +51,7 @@ test('后台预算耗尽后暂停，交互式分析仍可用，用量为估算',
     expect(view.usage.interactive.requests).toBeGreaterThanOrEqual(1);
     expect(view.usage.interactive.estimated).toBeTruthy();
     expect(view.usage.paused).toBeTruthy();
-    await expect(session.window.getByLabel('后台每日请求数')).toHaveCount(0);
+    await expect(session.window.getByRole('dialog', { name: '设置' })).toBeHidden();
     await session.window.getByRole('button', { name: '设置', exact: true }).click();
     await expect(session.window.getByLabel('后台每日请求数')).toBeVisible();
   } finally {
