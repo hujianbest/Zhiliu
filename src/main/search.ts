@@ -112,9 +112,16 @@ export class SearchIndex {
   }
 
   async seedBenchChunks(count: number): Promise<void> {
-    const docs: KeywordDoc[] = [];
+    const batch: KeywordDoc[] = [];
+    const flush = (): void => {
+      if (batch.length === 0) {
+        return;
+      }
+      this.keyword.appendAll(batch);
+      batch.length = 0;
+    };
     for (let i = 0; i < count; i += 1) {
-      docs.push({
+      batch.push({
         id: `bench:${i}`,
         kind: 'epub',
         title: `规模分块 ${i}`,
@@ -126,9 +133,11 @@ export class SearchIndex {
         partialIndex: false,
         provenance: 'source',
       });
+      if (batch.length >= 2_000) {
+        flush();
+      }
     }
-    this.keyword.appendAll(docs);
-    this.docs.push(...docs);
+    flush();
   }
 
   private async embedAll(): Promise<void> {
