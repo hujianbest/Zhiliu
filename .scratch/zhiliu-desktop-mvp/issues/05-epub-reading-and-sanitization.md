@@ -10,8 +10,12 @@
 
 **Demo acceptance:** 需要。排版质量与阅读舒适度只能人看。
 
-- [ ] 从书库打开 EPUB 可以渲染正文并连续翻阅
-- [ ] 正文文本可以选中
-- [ ] EPUB 内的脚本与不安全活动内容在渲染前被禁用或净化，测试以含脚本的素材断言其不执行
-- [ ] 断网状态下 EPUB 阅读完全可用
-- [ ] 阅读界面可以完全用键盘翻阅，同时保留可见控件
+- [x] 从书库打开 EPUB 可以渲染正文并连续翻阅
+- [x] 正文文本可以选中
+- [x] EPUB 内的脚本与不安全活动内容在渲染前被禁用或净化，测试以含脚本的素材断言其不执行
+- [x] 断网状态下 EPUB 阅读完全可用
+- [x] 阅读界面可以完全用键盘翻阅，同时保留可见控件
+
+## Comments
+
+- 2026-08-30 票 05 已实现。阅读在「书库/阅读」内。主进程按 OPF spine 抽出章节并 `sanitize-html`；iframe `sandbox="allow-same-origin"` 且无 `allow-scripts`。E2E：`e2e/reading.spec.ts`。见 `docs/adr/0017-epub-sanitized-iframe-reading.md`。

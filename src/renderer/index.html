@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>知流</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <section id="first-run" class="first-run" hidden>
+      <h1>选择知识库位置</h1>
+      <p class="lede">
+        知流把来源文档、笔记和稿件都放在你指定的本地目录里。这个目录可以整份复制到另一台电脑，不依赖任何账号。
+      </p>
+      <button type="button" id="choose-vault">选择知识库位置</button>
+    </section>
+
+    <div class="shell" id="app-shell" hidden>
+      <nav class="spaces" aria-label="主空间">
+        <p class="brand">知流</p>
+        <button type="button" data-space="library" aria-current="page">书库/阅读</button>
+        <button type="button" data-space="thoughts">思想</button>
+        <button type="button" data-space="creation">创作</button>
+        <button type="button" id="open-search" title="检索（Ctrl+K）" aria-keyshortcuts="Control+K Meta+K">检索</button>
+        <button type="button" id="open-settings" title="设置（Ctrl+,）" aria-keyshortcuts="Control+Comma">设置</button>
+      </nav>
+
+      <main class="workspace">
+        <section data-space-panel="library">
+          <div id="library-browse">
+            <h1>书库/阅读</h1>
+            <p class="lede">来源文档会在这里等待被重新打开。阅读是主业，Agent 只待在侧栏。</p>
+            <p id="library-empty">还没有来源文档。</p>
+            <p id="library-error" role="alert" hidden></p>
+            <ul id="library-list" aria-label="书库"></ul>
+            <button type="button" id="import-epub">导入 EPUB</button>
+          </div>
+          <div id="library-reader" hidden tabindex="-1">
+            <div class="reader-bar">
+              <button type="button" id="reader-back">返回书库</button>
+              <h1 id="reader-title"></h1>
+            </div>
+            <p id="reader-chapter" class="reader-chapter"></p>
+            <p id="reader-status" class="reader-status"></p>
+            <p id="capture-hint" role="status" hidden></p>
+            <div class="reader-body">
+              <iframe id="reader-frame" title="正文" sandbox="allow-same-origin"></iframe>
+              <section id="reader-notes" aria-labelledby="reader-notes-title">
+                <h2 id="reader-notes-title">本书笔记</h2>
+                <p id="reader-notes-empty">还没有笔记。选中正文后点「记下这段」。</p>
+                <ul id="reader-notes-list" aria-label="本书笔记"></ul>
+              </section>
+            </div>
+            <nav class="reader-nav" aria-label="阅读">
+              <button type="button" id="reader-toc" title="目录（T）" aria-keyshortcuts="T">目录</button>
+              <button type="button" id="reader-prev" title="上一章（←）" aria-keyshortcuts="ArrowLeft">上一章</button>
+              <button type="button" id="reader-next" title="下一章（→）" aria-keyshortcuts="ArrowRight">下一章</button>
+              <button type="button" id="reader-read-flag" title="标记已读（Shift+R）" aria-keyshortcuts="Shift+R">
+                标记已读
+              </button>
+              <button type="button" id="reader-capture" title="记下这段（Ctrl+M）" aria-keyshortcuts="Control+M Meta+M">
+                记下这段
+              </button>
+            </nav>
+          </div>
+        </section>
+        <section data-space-panel="thoughts" hidden>
+          <h1>思想</h1>
+          <p class="lede">摘录与思想笔记会在这里生长，而不是堆在聊天记录里。</p>
+        </section>
+        <section data-space-panel="creation" hidden>
+          <h1>创作</h1>
+          <p class="lede">稿件在这里写成，来源归属会一直看得见。</p>
+        </section>
+      </main>
+
+      <aside class="agent" aria-label="Agent">
+        <h2>Agent</h2>
+        <p class="lede" id="agent-copy">侧栏跟随三个空间。配置模型之后，提问不会替换正在阅读的页面。</p>
+        <p id="agent-unconfigured" hidden>尚未配置模型。</p>
+        <button type="button" id="agent-open-settings" hidden>打开设置</button>
+      </aside>
+    </div>
+
+    <dialog id="search" aria-labelledby="search-title">
+      <h2 id="search-title">检索</h2>
+      <label>
+        关键词
+        <input id="search-query" type="text" role="searchbox" name="q" aria-label="关键词" autocomplete="off" spellcheck="false" />
+      </label>
+      <label class="search-semantic">
+        <input id="search-semantic" type="checkbox" checked />
+        语义
+      </label>
+      <p id="search-empty" hidden>没有找到匹配的内容。换个词再试。</p>
+      <ul id="search-results" aria-label="检索结果"></ul>
+      <button type="button" id="search-close">关闭</button>
+    </dialog>
+    <dialog id="settings" aria-labelledby="settings-title">
+      <form id="settings-form" method="dialog">
+        <h2 id="settings-title">设置</h2>
+        <fieldset>
+          <legend>快速/低成本</legend>
+          <label>快速/低成本 接口地址 <input name="fast-base-url" aria-label="快速/低成本 接口地址" /></label>
+          <label>快速/低成本 模型名 <input name="fast-model" aria-label="快速/低成本 模型名" /></label>
+          <label>
+            快速/低成本 API Key
+            <input name="fast-api-key" type="password" autocomplete="off" aria-label="快速/低成本 API Key" />
+          </label>
+          <button type="button" data-probe="fast">测试连通性</button>
+          <p class="probe-status" data-probe-result="fast" role="status"></p>
+        </fieldset>
+        <fieldset>
+          <legend>深度写作</legend>
+          <label>深度写作 接口地址 <input name="deep-base-url" aria-label="深度写作 接口地址" /></label>
+          <label>深度写作 模型名 <input name="deep-model" aria-label="深度写作 模型名" /></label>
+          <label>
+            深度写作 API Key
+            <input name="deep-api-key" type="password" autocomplete="off" aria-label="深度写作 API Key" />
+          </label>
+          <button type="button" data-probe="deep">测试连通性</button>
+          <p class="probe-status" data-probe-result="deep" role="status"></p>
+        </fieldset>
+        <div class="settings-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="settings-close" value="cancel">关闭</button>
+        </div>
+        <p id="settings-saved" class="probe-status" role="status"></p>
+      </form>
+    </dialog>
+    <dialog id="toc-dialog" aria-labelledby="toc-title">
+      <h2 id="toc-title">目录</h2>
+      <nav aria-label="章节目录">
+        <ul id="toc-list"></ul>
+      </nav>
+      <button type="button" id="toc-close">关闭</button>
+    </dialog>
+    <dialog id="capture-dialog" aria-labelledby="capture-title">
+      <form id="capture-form">
+        <h2 id="capture-title">记下这段</h2>
+        <blockquote id="capture-quotation"></blockquote>
+        <label>
+          想法
+          <textarea id="capture-thought" name="thought" aria-label="想法" rows="4"></textarea>
+        </label>
+        <div class="settings-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="capture-cancel">取消</button>
+        </div>
+      </form>
+    </dialog>
+    <script src="./main.js"></script>
+  </body>
+</html>

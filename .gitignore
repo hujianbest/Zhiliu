@@ -1,2 +1,13 @@
 **/__pycache__/
 *.py[cod]
+node_modules/
+dist/
+out/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+*.log
+.DS_Store
+.env
+.env.*
