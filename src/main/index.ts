@@ -108,7 +108,9 @@ ipcMain.handle('vault:choose', async () => {
 
 ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => {
   const note = await vault.saveNote(input);
-  if (!note.path.endsWith('.conflict.md')) {
+  if (note.path.endsWith('.conflict.md')) {
+    await search.rebuild();
+  } else {
     await search.indexNote(note);
   }
   await commitForNote(input, note.kind);
