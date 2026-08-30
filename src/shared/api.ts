@@ -33,6 +33,37 @@ export type VaultStatus = {
   path: string | null;
 };
 
+export type ModelRole = 'fast' | 'deep';
+
+export type ProbeResult = 'ok' | 'unauthorized' | 'unreachable';
+
+export type ProbeOutcome = {
+  result: ProbeResult;
+};
+
+export type ModelRoleView = {
+  baseUrl: string;
+  model: string;
+  hasKey: boolean;
+};
+
+export type ModelSettingsView = {
+  configured: boolean;
+  fast: ModelRoleView;
+  deep: ModelRoleView;
+};
+
+export type SaveModelRoleInput = {
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+};
+
+export type SaveModelSettingsInput = {
+  fast: SaveModelRoleInput;
+  deep: SaveModelRoleInput;
+};
+
 export type ZhiliuApi = {
   vault: {
     current(): Promise<VaultStatus>;
@@ -41,5 +72,10 @@ export type ZhiliuApi = {
   notes: {
     save(input: SaveNoteInput): Promise<AtomicNote>;
     get(id: string): Promise<AtomicNote | null>;
+  };
+  models: {
+    view(): Promise<ModelSettingsView>;
+    save(input: SaveModelSettingsInput): Promise<ModelSettingsView>;
+    probe(input: { baseUrl: string; apiKey: string; role?: ModelRole }): Promise<ProbeOutcome>;
   };
 };

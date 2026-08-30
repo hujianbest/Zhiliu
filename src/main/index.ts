@@ -1,6 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
-import type { SaveNoteInput } from '../shared/api';
+import type { SaveModelSettingsInput, SaveNoteInput } from '../shared/api';
+import { createCredentialStore } from './credentials';
+import { ModelSettings } from './models';
+import { PreferenceStore } from './preferences';
 import { Vault } from './vault';
 
 if (process.env.ZHILIU_USER_DATA) {
@@ -15,7 +18,9 @@ if (process.env.ZHILIU_E2E === '1') {
   app.disableHardwareAcceleration();
 }
 
-const vault = new Vault(app.getPath('userData'), process.env);
+const preferences = new PreferenceStore(app.getPath('userData'));
+const vault = new Vault(preferences, process.env);
+const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -60,6 +65,12 @@ ipcMain.handle('vault:choose', async () => {
 
 ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => vault.saveNote(input));
 ipcMain.handle('notes:get', async (_event, id: string) => vault.getNote(id));
+ipcMain.handle('models:view', async () => models.view());
+ipcMain.handle('models:save', async (_event, input: SaveModelSettingsInput) => models.save(input));
+ipcMain.handle(
+  'models:probe',
+  async (_event, input: { baseUrl: string; apiKey: string; role?: 'fast' | 'deep' }) => models.probe(input),
+);
 
 app.whenReady().then(async () => {
   await vault.openFromEnvironment();

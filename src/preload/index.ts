@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { SaveNoteInput, ZhiliuApi } from '../shared/api';
+import type { SaveModelSettingsInput, SaveNoteInput, ZhiliuApi } from '../shared/api';
 
 const api: ZhiliuApi = {
   vault: {
@@ -9,6 +9,11 @@ const api: ZhiliuApi = {
   notes: {
     save: (input: SaveNoteInput) => ipcRenderer.invoke('notes:save', input),
     get: (id: string) => ipcRenderer.invoke('notes:get', id),
+  },
+  models: {
+    view: () => ipcRenderer.invoke('models:view'),
+    save: (input: SaveModelSettingsInput) => ipcRenderer.invoke('models:save', input),
+    probe: (input) => ipcRenderer.invoke('models:probe', input),
   },
 };
 

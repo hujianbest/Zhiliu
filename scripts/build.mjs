@@ -19,7 +19,7 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron'],
+    external: ['electron', 'keytar'],
     logLevel: 'info',
   }),
   esbuild.build({
@@ -30,7 +30,7 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron'],
+    external: ['electron', 'keytar'],
     logLevel: 'info',
   }),
   esbuild.build({
@@ -45,40 +45,4 @@ await Promise.all([
   }),
   copyFile(path.join(root, 'src/renderer/index.html'), path.join(rendererOut, 'index.html')),
   copyFile(path.join(root, 'src/renderer/styles.css'), path.join(rendererOut, 'styles.css')),
-]);
-
-
-await Promise.all([
-  esbuild.build({
-    absWorkingDir: root,
-    entryPoints: ['src/main/index.ts'],
-    outfile: 'dist/main/index.cjs',
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node22',
-    external: ['electron'],
-    logLevel: 'info',
-  }),
-  esbuild.build({
-    absWorkingDir: root,
-    entryPoints: ['src/preload/index.ts'],
-    outfile: 'dist/preload/index.cjs',
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    target: 'node22',
-    external: ['electron'],
-    logLevel: 'info',
-  }),
-  esbuild.build({
-    absWorkingDir: root,
-    entryPoints: ['src/renderer/main.ts'],
-    outfile: 'dist/renderer/main.js',
-    bundle: true,
-    platform: 'browser',
-    format: 'iife',
-    target: 'es2022',
-    logLevel: 'info',
-  }),
 ]);

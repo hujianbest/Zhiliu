@@ -3,8 +3,8 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
 import type { AtomicNote, NoteRelation, SaveNoteInput, VaultStatus } from '../shared/api';
+import type { PreferenceStore } from './preferences';
 
-const PREFERENCES_FILE = 'preferences.json';
 const VAULT_MANIFEST = path.join('.zhiliu', 'vault.json');
 
 type NoteFrontmatter = {
@@ -24,7 +24,7 @@ export class Vault {
   path: string | null = null;
 
   constructor(
-    private readonly userDataPath: string,
+    private readonly preferences: PreferenceStore,
     private readonly env: NodeJS.ProcessEnv = process.env,
   ) {}
 
@@ -35,7 +35,7 @@ export class Vault {
       return this.current();
     }
 
-    const remembered = await this.readPreferences();
+    const remembered = (await this.preferences.read()).vaultPath;
     if (remembered) {
       try {
         await this.use(remembered);
@@ -113,22 +113,7 @@ export class Vault {
     if (!this.path) {
       return;
     }
-    await mkdir(this.userDataPath, { recursive: true });
-    await writeFile(
-      path.join(this.userDataPath, PREFERENCES_FILE),
-      `${JSON.stringify({ vaultPath: this.path }, null, 2)}\n`,
-      'utf8',
-    );
-  }
-
-  private async readPreferences(): Promise<string | null> {
-    try {
-      const raw = await readFile(path.join(this.userDataPath, PREFERENCES_FILE), 'utf8');
-      const parsed = JSON.parse(raw) as { vaultPath?: string };
-      return parsed.vaultPath ?? null;
-    } catch {
-      return null;
-    }
+    await this.preferences.update({ vaultPath: this.path });
   }
 
   private requirePath(): string {

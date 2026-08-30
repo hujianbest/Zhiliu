@@ -44,6 +44,13 @@ export async function startFakeOpenAI(): Promise<FakeOpenAI> {
         body,
       });
 
+      const token = String(req.headers.authorization ?? '').replace(/^Bearer\s+/i, '');
+      if (token === 'sk-invalid') {
+        res.writeHead(401, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: { message: 'invalid api key', type: 'invalid_request_error' } }));
+        return;
+      }
+
       if (req.method === 'GET' && matches(req.url, '/models')) {
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ object: 'list', data: [{ id: 'fake-fast', object: 'model' }] }));
