@@ -1,13 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { ImportFailure, ImportResult, SourceDocument } from '../shared/api';
+import type { ImportFailure, ImportResult, ReadingStatus, SourceDocument } from '../shared/api';
 import { parseEpub } from './epub';
+import { readProgress } from './reading-ledger';
 import type { Vault } from './vault';
+
+type CatalogSource = Omit<SourceDocument, 'readingStatus'>;
 
 type LibraryFile = {
   version: 1;
-  sources: SourceDocument[];
+  sources: CatalogSource[];
 };
 
 export class Library {
@@ -29,23 +32,39 @@ export class Library {
   }
 
   async list(): Promise<SourceDocument[]> {
-    return (await this.read()).sources;
+    const sources = (await this.read()).sources;
+    let statuses: Record<string, ReadingStatus> = {};
+    try {
+      const progress = await readProgress(this.requireRoot());
+      for (const [id, book] of Object.entries(progress.books)) {
+        statuses[id] = book.status;
+      }
+    } catch {
+      statuses = {};
+    }
+    return sources.map((source) => ({
+      ...source,
+      readingStatus: statuses[source.id] ?? 'unread',
+    }));
   }
 
-  async get(id: string): Promise<SourceDocument | null> {
-    return (await this.list()).find((source) => source.id === id) ?? null;
+  async get(id: string): Promise<CatalogSource | null> {
+    return (await this.read()).sources.find((source) => source.id === id) ?? null;
   }
 
   sourcePath(id: string): string {
     return path.join(this.requireRoot(), 'sources', `${id}.epub`);
   }
 
+  root(): string {
+    return this.requireRoot();
+  }
+
   async importPaths(filePaths: string[]): Promise<ImportResult> {
-    const sources: SourceDocument[] = [];
     const failures: ImportFailure[] = [];
     for (const filePath of filePaths) {
       try {
-        sources.push(await this.importOne(filePath));
+        await this.importOne(filePath);
       } catch (error) {
         failures.push({
           filename: path.basename(filePath),
@@ -56,7 +75,7 @@ export class Library {
     return { sources: await this.list(), failures };
   }
 
-  private async importOne(filePath: string): Promise<SourceDocument> {
+  private async importOne(filePath: string): Promise<CatalogSource> {
     const root = this.requireRoot();
     const originalFilename = path.basename(filePath);
     const bytes = await readFile(filePath);
@@ -64,7 +83,7 @@ export class Library {
     const id = randomUUID();
     const dest = path.join(root, 'sources', `${id}.epub`);
     await writeFile(dest, bytes);
-    const source: SourceDocument = {
+    const source: CatalogSource = {
       id,
       kind: 'epub',
       title: parsed.title || stripExtension(originalFilename),

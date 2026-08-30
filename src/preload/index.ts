@@ -20,6 +20,12 @@ const api: ZhiliuApi = {
     importEpubs: () => ipcRenderer.invoke('library:import'),
     open: (id) => ipcRenderer.invoke('library:open', id),
     turn: (direction) => ipcRenderer.invoke('library:turn', direction),
+    jump: (spineIndex) => ipcRenderer.invoke('library:jump', spineIndex),
+    close: () => ipcRenderer.invoke('library:close'),
+    resume: () => ipcRenderer.invoke('library:resume'),
+    markRead: (id) => ipcRenderer.invoke('library:markRead', id),
+    unmarkRead: (id) => ipcRenderer.invoke('library:unmarkRead', id),
+    recordAgentLook: (sourceId) => ipcRenderer.invoke('library:recordAgentLook', sourceId),
   },
 };
 

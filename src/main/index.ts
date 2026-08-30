@@ -23,7 +23,7 @@ if (process.env.ZHILIU_E2E === '1') {
 const preferences = new PreferenceStore(app.getPath('userData'));
 const vault = new Vault(preferences, process.env);
 const library = new Library(vault, process.env);
-const reading = new Reading(library);
+const reading = new Reading(library, preferences);
 const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
 
 function createWindow(): void {
@@ -79,6 +79,14 @@ ipcMain.handle(
 ipcMain.handle('library:list', async () => library.list());
 ipcMain.handle('library:open', async (_event, id: string) => reading.open(id));
 ipcMain.handle('library:turn', async (_event, direction: TurnDirection) => reading.turn(direction));
+ipcMain.handle('library:jump', async (_event, spineIndex: number) => reading.jump(spineIndex));
+ipcMain.handle('library:close', async () => reading.close());
+ipcMain.handle('library:resume', async () => reading.resume());
+ipcMain.handle('library:markRead', async (_event, id: string) => reading.markRead(id));
+ipcMain.handle('library:unmarkRead', async (_event, id: string) => reading.unmarkRead(id));
+ipcMain.handle('library:recordAgentLook', async (_event, sourceId: string) =>
+  reading.recordAgentLook(sourceId),
+);
 
 ipcMain.handle('library:import', async () => {
   const stub = library.stubbedFiles();

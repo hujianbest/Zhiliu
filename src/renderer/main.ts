@@ -1,4 +1,4 @@
-import type { ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingView, SourceDocument } from '../shared/api';
+import type { ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SourceDocument, TocEntry } from '../shared/api';
 
 const spaces = ['library', 'thoughts', 'creation'] as const;
 type Space = (typeof spaces)[number];
@@ -15,6 +15,15 @@ const indexCopy: Record<IndexStatus, string> = {
   ready: '已索引',
   error: '索引失败',
 };
+
+const readingCopy: Record<ReadingStatus, string> = {
+  unread: '未读',
+  reading: '阅读中',
+  read: '已读',
+};
+
+let currentSourceId: string | null = null;
+let currentStatus: ReadingStatus = 'unread';
 
 function isSpace(value: string | null): value is Space {
   return value === 'library' || value === 'thoughts' || value === 'creation';
@@ -100,6 +109,10 @@ function renderLibrary(sources: SourceDocument[]): void {
     status.className = 'source-index';
     status.textContent = indexCopy[source.indexStatus];
     item.append(status);
+    const reading = document.createElement('p');
+    reading.className = 'source-reading';
+    reading.textContent = readingCopy[source.readingStatus];
+    item.append(reading);
     list.append(item);
   }
 }
@@ -178,11 +191,37 @@ function readerDocument(html: string): string {
   return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><style>${readerPageCss}</style></head><body>${html}</body></html>`;
 }
 
+function tocDialog(): HTMLDialogElement {
+  return document.getElementById('toc-dialog') as HTMLDialogElement;
+}
+
+function isTextEntry(event: KeyboardEvent): boolean {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
 function onReaderKey(event: KeyboardEvent): void {
-  if (!isReading() || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+  if (!isReading() || event.altKey || event.ctrlKey || event.metaKey) {
     return;
   }
-  if (settingsDialog().open) {
+  if (settingsDialog().open || isTextEntry(event)) {
+    return;
+  }
+  if (event.shiftKey && (event.key === 'R' || event.key === 'r')) {
+    event.preventDefault();
+    void toggleReadFlag();
+    return;
+  }
+  if (event.shiftKey) {
+    return;
+  }
+  if (event.key === 't' || event.key === 'T') {
+    event.preventDefault();
+    toggleToc();
     return;
   }
   if (event.key === 'ArrowRight') {
@@ -210,6 +249,82 @@ async function turnReading(direction: 'prev' | 'next'): Promise<void> {
   showReading(await window.zhiliu.library.turn(direction));
 }
 
+function renderReadFlag(status: ReadingStatus): void {
+  currentStatus = status;
+  const label = document.getElementById('reader-status');
+  const button = document.getElementById('reader-read-flag') as HTMLButtonElement | null;
+  if (label) {
+    label.textContent = readingCopy[status];
+  }
+  if (!button) {
+    return;
+  }
+  if (status === 'read') {
+    button.textContent = '撤销已读';
+    button.title = '撤销已读（Shift+R）';
+  } else {
+    button.textContent = '标记已读';
+    button.title = '标记已读（Shift+R）';
+  }
+}
+
+async function toggleReadFlag(): Promise<void> {
+  if (!isReading() || !currentSourceId) {
+    return;
+  }
+  const status =
+    currentStatus === 'read'
+      ? await window.zhiliu.library.unmarkRead(currentSourceId)
+      : await window.zhiliu.library.markRead(currentSourceId);
+  renderReadFlag(status);
+}
+
+async function jumpReading(spineIndex: number): Promise<void> {
+  if (!isReading()) {
+    return;
+  }
+  showReading(await window.zhiliu.library.jump(spineIndex));
+  closeToc();
+}
+
+function renderToc(entries: TocEntry[]): void {
+  const list = document.getElementById('toc-list');
+  if (!list) {
+    return;
+  }
+  list.replaceChildren();
+  for (const entry of entries) {
+    const item = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = entry.label;
+    button.dataset.spineIndex = String(entry.spineIndex);
+    item.append(button);
+    list.append(item);
+  }
+}
+
+function closeToc(): void {
+  const dialog = tocDialog();
+  if (dialog.open) {
+    dialog.close();
+  }
+}
+
+function toggleToc(): void {
+  if (!isReading()) {
+    return;
+  }
+  const dialog = tocDialog();
+  if (dialog.open) {
+    dialog.close();
+    return;
+  }
+  dialog.showModal();
+  const first = dialog.querySelector<HTMLButtonElement>('#toc-list button');
+  first?.focus();
+}
+
 function showReading(view: ReadingView): void {
   const browse = libraryBrowse();
   const reader = libraryReader();
@@ -229,6 +344,9 @@ function showReading(view: ReadingView): void {
   next.disabled = !view.hasNext;
   frame.onload = () => bindFrameKeys(frame);
   frame.srcdoc = readerDocument(view.html);
+  renderToc(view.toc);
+  currentSourceId = view.sourceId;
+  renderReadFlag(view.status);
   reader.focus();
 }
 
@@ -239,6 +357,8 @@ function showLibraryList(): void {
   if (!browse || !reader) {
     return;
   }
+  closeToc();
+  currentSourceId = null;
   reader.hidden = true;
   browse.hidden = false;
   if (frame) {
@@ -311,13 +431,37 @@ document.getElementById('library-list')?.addEventListener('click', (event) => {
 });
 
 document.getElementById('reader-back')?.addEventListener('click', () => {
-  showLibraryList();
+  void window.zhiliu.library.close().then(() => {
+    showLibraryList();
+    void refreshLibrary();
+  });
 });
 document.getElementById('reader-prev')?.addEventListener('click', () => {
   void turnReading('prev');
 });
 document.getElementById('reader-next')?.addEventListener('click', () => {
   void turnReading('next');
+});
+document.getElementById('reader-toc')?.addEventListener('click', () => {
+  toggleToc();
+});
+document.getElementById('toc-close')?.addEventListener('click', () => {
+  closeToc();
+});
+document.getElementById('toc-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const button = target.closest<HTMLButtonElement>('[data-spine-index]');
+  const raw = button?.dataset.spineIndex;
+  if (raw === undefined) {
+    return;
+  }
+  void jumpReading(Number(raw));
+});
+document.getElementById('reader-read-flag')?.addEventListener('click', () => {
+  void toggleReadFlag();
 });
 
 document.getElementById('choose-vault')?.addEventListener('click', () => {
@@ -381,10 +525,14 @@ document.getElementById('settings-form')?.addEventListener('submit', (event) => 
     });
 });
 
-void window.zhiliu.vault.current().then((status) => {
+void window.zhiliu.vault.current().then(async (status) => {
   showApp(status.firstRun);
   if (!status.firstRun) {
     void refreshAgent();
-    void refreshLibrary();
+    await refreshLibrary();
+    const view = await window.zhiliu.library.resume();
+    if (view) {
+      showReading(view);
+    }
   }
 });

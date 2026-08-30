@@ -44,10 +44,15 @@
               <h1 id="reader-title"></h1>
             </div>
             <p id="reader-chapter" class="reader-chapter"></p>
+            <p id="reader-status" class="reader-status"></p>
             <iframe id="reader-frame" title="正文" sandbox="allow-same-origin"></iframe>
             <nav class="reader-nav" aria-label="章节">
+              <button type="button" id="reader-toc" title="目录（T）" aria-keyshortcuts="T">目录</button>
               <button type="button" id="reader-prev" title="上一章（←）" aria-keyshortcuts="ArrowLeft">上一章</button>
               <button type="button" id="reader-next" title="下一章（→）" aria-keyshortcuts="ArrowRight">下一章</button>
+              <button type="button" id="reader-read-flag" title="标记已读（Shift+R）" aria-keyshortcuts="Shift+R">
+                标记已读
+              </button>
             </nav>
           </div>
         </section>
@@ -100,6 +105,13 @@
         </div>
         <p id="settings-saved" class="probe-status" role="status"></p>
       </form>
+    </dialog>
+    <dialog id="toc-dialog" aria-labelledby="toc-title">
+      <h2 id="toc-title">目录</h2>
+      <nav aria-label="章节目录">
+        <ul id="toc-list"></ul>
+      </nav>
+      <button type="button" id="toc-close">关闭</button>
     </dialog>
     <script src="./main.js"></script>
   </body>

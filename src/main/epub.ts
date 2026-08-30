@@ -12,9 +12,15 @@ export type EpubChapter = {
   html: string;
 };
 
+export type EpubTocEntry = {
+  label: string;
+  spineIndex: number;
+};
+
 export type EpubReading = {
   title: string;
   chapters: EpubChapter[];
+  toc: EpubTocEntry[];
 };
 
 export async function parseEpub(bytes: Buffer): Promise<ParsedEpub> {
@@ -32,6 +38,7 @@ export async function extractReading(bytes: Buffer): Promise<EpubReading> {
   const opfDir = path.posix.dirname(opfPath);
   const manifest = parseManifest(opf);
   const chapters: EpubChapter[] = [];
+  const chapterIndexByPath = new Map<string, number>();
 
   for (const idref of parseSpine(opf)) {
     const item = manifest.get(idref);
@@ -45,6 +52,7 @@ export async function extractReading(bytes: Buffer): Promise<EpubReading> {
       continue;
     }
     const html = await sanitizeChapter(xhtml, zip, path.posix.dirname(chapterPath));
+    chapterIndexByPath.set(chapterPath, chapters.length);
     chapters.push({
       label: headingLabel(html) || `第${chapters.length + 1}章`,
       html,
@@ -58,6 +66,7 @@ export async function extractReading(bytes: Buffer): Promise<EpubReading> {
   return {
     title: dcValues(opf, 'title')[0] ?? '',
     chapters,
+    toc: await parseNavToc(zip, manifest, opfDir, chapterIndexByPath),
   };
 }
 
@@ -124,6 +133,61 @@ function parseSpine(opf: string): string[] {
 
 function isNavItem(item: ManifestItem): boolean {
   return /\bnav\b/.test(item.properties);
+}
+
+async function parseNavToc(
+  zip: JSZip,
+  manifest: Map<string, ManifestItem>,
+  opfDir: string,
+  chapterIndexByPath: Map<string, number>,
+): Promise<EpubTocEntry[]> {
+  const navItem = [...manifest.values()].find(isNavItem);
+  if (!navItem) {
+    return [];
+  }
+  const navPath = zipResolve(opfDir, navItem.href.split('#')[0] ?? navItem.href);
+  const navXhtml = await zip.file(navPath)?.async('string');
+  if (!navXhtml) {
+    return [];
+  }
+  const tocHtml = tocNavInner(navXhtml);
+  if (!tocHtml) {
+    return [];
+  }
+
+  const toc: EpubTocEntry[] = [];
+  const seen = new Set<number>();
+  const navDir = path.posix.dirname(navPath);
+  for (const match of tocHtml.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi)) {
+    const href = xmlAttrs(match[1]).href;
+    if (!href) {
+      continue;
+    }
+    const file = href.split('#')[0] ?? href;
+    const resolved = zipResolve(navDir, file);
+    const spineIndex = chapterIndexByPath.get(resolved);
+    if (spineIndex === undefined || seen.has(spineIndex)) {
+      continue;
+    }
+    const label = decodeXml(match[2].replace(/<[^>]+>/g, '').trim());
+    if (!label) {
+      continue;
+    }
+    seen.add(spineIndex);
+    toc.push({ label, spineIndex });
+  }
+  return toc;
+}
+
+function tocNavInner(navXhtml: string): string {
+  const blocks = navXhtml.match(/<nav\b[^>]*>[\s\S]*?<\/nav>/gi) ?? [];
+  for (const block of blocks) {
+    const open = block.match(/<nav\b[^>]*>/i)?.[0] ?? '';
+    if (/epub:type\s*=\s*["'][^"']*\btoc\b/i.test(open) || /role\s*=\s*["']doc-toc["']/i.test(open)) {
+      return block;
+    }
+  }
+  return blocks[0] ?? '';
 }
 
 function xmlAttrs(raw: string): Record<string, string> {

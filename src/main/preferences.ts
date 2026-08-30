@@ -12,6 +12,7 @@ export type AppPreferences = {
     fast?: ModelRoleConfig;
     deep?: ModelRoleConfig;
   };
+  openSourceId?: string | null;
 };
 
 export class PreferenceStore {

@@ -140,7 +140,8 @@ body {
   font-size: 1.5rem;
 }
 
-.reader-chapter {
+.reader-chapter,
+.reader-status {
   margin: 0;
   color: var(--color-ink-muted);
 }
@@ -155,7 +156,10 @@ body {
 
 #reader-back,
 #reader-prev,
-#reader-next {
+#reader-next,
+#reader-toc,
+#reader-read-flag,
+#toc-close {
   appearance: none;
   min-height: 44px;
   min-width: 44px;
@@ -177,6 +181,7 @@ body {
 
 .reader-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 
@@ -289,6 +294,7 @@ body {
 
 .source-authors,
 .source-index,
+.source-reading,
 #library-empty {
   margin: var(--space-1) 0 0;
   color: var(--color-ink-muted);
@@ -360,6 +366,9 @@ dialog button:focus-visible,
 #reader-back:focus-visible,
 #reader-prev:focus-visible,
 #reader-next:focus-visible,
+#reader-toc:focus-visible,
+#reader-read-flag:focus-visible,
+#toc-close:focus-visible,
 .source-title:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
@@ -392,4 +401,29 @@ dialog button,
 #agent-unconfigured {
   margin: 0 0 var(--space-4);
   color: var(--color-ink);
+}
+
+#toc-list {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+}
+
+#toc-list li + li {
+  margin-top: var(--space-2);
+}
+
+#toc-list button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+  color: var(--color-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }

@@ -68,6 +68,8 @@ export type IndexStatus = 'pending' | 'indexing' | 'ready' | 'error';
 
 export type SourceKind = 'epub';
 
+export type ReadingStatus = 'unread' | 'reading' | 'read';
+
 export type SourceDocument = {
   id: string;
   kind: SourceKind;
@@ -75,6 +77,7 @@ export type SourceDocument = {
   authors: string[];
   indexStatus: IndexStatus;
   originalFilename: string;
+  readingStatus: ReadingStatus;
 };
 
 export type ImportFailure = {
@@ -89,12 +92,20 @@ export type ImportResult = {
 
 export type TurnDirection = 'prev' | 'next';
 
+export type TocEntry = {
+  label: string;
+  spineIndex: number;
+};
+
 export type ReadingView = {
+  sourceId: string;
   title: string;
   chapterLabel: string;
   html: string;
   hasPrev: boolean;
   hasNext: boolean;
+  toc: TocEntry[];
+  status: ReadingStatus;
 };
 
 export type ZhiliuApi = {
@@ -116,5 +127,11 @@ export type ZhiliuApi = {
     importEpubs(): Promise<ImportResult>;
     open(id: string): Promise<ReadingView>;
     turn(direction: TurnDirection): Promise<ReadingView>;
+    jump(spineIndex: number): Promise<ReadingView>;
+    close(): Promise<void>;
+    resume(): Promise<ReadingView | null>;
+    markRead(id: string): Promise<ReadingStatus>;
+    unmarkRead(id: string): Promise<ReadingStatus>;
+    recordAgentLook(sourceId: string): Promise<void>;
   };
 };
