@@ -55,6 +55,7 @@ test('选中正文后可以记下想法并留在阅读界面', async () => {
     const notes = session.window.getByRole('list', { name: '本书笔记' });
     await expect(notes.getByText(firesideSentence)).toBeVisible();
     await expect(notes.getByText('炉边这句值得反复读。')).toBeVisible();
+    await expect(notes.getByText('思想笔记', { exact: true })).toBeVisible();
 
     const files = await savedNoteFiles(session.vaultPath as string);
     expect(files.length).toBe(1);
@@ -93,6 +94,7 @@ test('空想法的捕获保存为摘录，不离开阅读', async () => {
 
     await expect(session.window.getByRole('button', { name: '返回书库' })).toBeVisible();
     await expect(session.window.getByRole('list', { name: '本书笔记' }).getByText(firesideSentence)).toBeVisible();
+    await expect(session.window.getByRole('list', { name: '本书笔记' }).getByText('摘录', { exact: true })).toBeVisible();
 
     const files = await savedNoteFiles(session.vaultPath as string);
     expect(files.length).toBe(1);
@@ -100,6 +102,32 @@ test('空想法的捕获保存为摘录，不离开阅读', async () => {
     expect(raw).toMatch(/kind:\s*excerpt/);
     expect(raw).toContain(firesideSentence);
     expect(raw).toContain('（无）');
+  } finally {
+    await session.close();
+  }
+});
+
+test('本书笔记列表区分摘录与思想笔记', async () => {
+  const session = await launchZhiliu({ chooseFiles: [fireside] });
+  try {
+    await importAndOpen(session.window, '炉边小札');
+    await selectInReader(session.window, firesideSentence);
+    await session.window.getByRole('button', { name: '记下这段' }).click();
+    await session.window.getByRole('dialog', { name: '记下这段' }).getByLabel('想法').press('Enter');
+
+    await selectInReader(session.window, firesideSentence);
+    await session.window.getByRole('button', { name: '记下这段' }).click();
+    const dialog = session.window.getByRole('dialog', { name: '记下这段' });
+    await dialog.getByLabel('想法').fill('这是想法。');
+    await dialog.getByLabel('想法').press('Enter');
+
+    const notes = session.window.getByRole('list', { name: '本书笔记' });
+    await expect(notes.getByText('摘录', { exact: true })).toBeVisible();
+    await expect(notes.getByText('思想笔记', { exact: true })).toBeVisible();
+    const excerptRow = notes.getByRole('listitem').filter({ hasText: '摘录' });
+    const thoughtRow = notes.getByRole('listitem').filter({ hasText: '思想笔记' });
+    await expect(excerptRow.getByText('（无）')).toBeVisible();
+    await expect(thoughtRow.getByText('这是想法。')).toBeVisible();
   } finally {
     await session.close();
   }

@@ -219,6 +219,13 @@ body {
   cursor: pointer;
 }
 
+.source-note-kind {
+  display: block;
+  margin-bottom: var(--space-1);
+  color: var(--color-ink-muted);
+  font-size: 0.85rem;
+}
+
 .source-note-quote,
 .source-note-thought {
   margin: 0;

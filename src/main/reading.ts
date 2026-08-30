@@ -48,23 +48,25 @@ export class Reading {
 
   async turn(direction: TurnDirection): Promise<ReadingView> {
     const session = this.requireSession();
+    const before = session.index;
     if (direction === 'next' && session.index < session.chapters.length - 1) {
       session.index += 1;
     }
     if (direction === 'prev' && session.index > 0) {
       session.index -= 1;
     }
-    this.touchReading();
+    this.applyProgressAfterMove(before);
     await this.persist(true);
     return this.view();
   }
 
   async jump(spineIndex: number): Promise<ReadingView> {
     const session = this.requireSession();
+    const before = session.index;
     if (Number.isInteger(spineIndex) && spineIndex >= 0 && spineIndex < session.chapters.length) {
       session.index = spineIndex;
     }
-    this.touchReading();
+    this.applyProgressAfterMove(before);
     await this.persist(true);
     return this.view();
   }
@@ -112,6 +114,16 @@ export class Reading {
       this.session.status = status;
     }
     return status;
+  }
+
+  private applyProgressAfterMove(beforeIndex: number): void {
+    const session = this.requireSession();
+    const last = session.chapters.length - 1;
+    if (session.index === last && beforeIndex !== last) {
+      session.status = 'read';
+      return;
+    }
+    this.touchReading();
   }
 
   private touchReading(): void {

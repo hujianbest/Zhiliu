@@ -126,7 +126,7 @@ test('阅读状态只随本地阅读或显式标记变化，Shift+R 可切换已
     await expect(item.getByText('未读')).toBeVisible();
 
     await first.window.getByRole('button', { name: '双章试读' }).click();
-    await expect(first.window.locator('#library-reader').getByText('阅读中', { exact: true })).toBeVisible();
+    await expect(first.window.locator('#library-reader').getByText('在读', { exact: true })).toBeVisible();
 
     const mark = first.window.getByRole('button', { name: '标记已读' });
     await expect(mark).toBeVisible();
@@ -151,14 +151,39 @@ test('阅读状态只随本地阅读或显式标记变化，Shift+R 可切换已
     const unmark = second.window.getByRole('button', { name: '撤销已读' });
     await expect(unmark).toHaveAttribute('title', /Shift\+R/);
     await unmark.click();
-    await expect(second.window.locator('#library-reader').getByText('阅读中', { exact: true })).toBeVisible();
+    await expect(second.window.locator('#library-reader').getByText('在读', { exact: true })).toBeVisible();
 
     await second.window.keyboard.press('Shift+R');
     await expect(second.window.locator('#library-reader').getByText('已读', { exact: true })).toBeVisible();
     await second.window.keyboard.press('Shift+R');
-    await expect(second.window.locator('#library-reader').getByText('阅读中', { exact: true })).toBeVisible();
+    await expect(second.window.locator('#library-reader').getByText('在读', { exact: true })).toBeVisible();
   } finally {
     await second.close();
+  }
+});
+
+test('读到末章会变为已读，撤销后回到在读', async () => {
+  const session = await launchZhiliu({ chooseFiles: [twoChapters] });
+  try {
+    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '双章试读' }).click();
+    await expect(session.window.locator('#library-reader').getByText('在读', { exact: true })).toBeVisible();
+
+    await session.window.getByRole('button', { name: '下一章' }).click();
+    const body = session.window.frameLocator('iframe[title="正文"]');
+    await expect(body.getByText('第二章独有句：南巷已经打烊。')).toBeVisible();
+    await expect(session.window.locator('#library-reader').getByText('已读', { exact: true })).toBeVisible();
+
+    await session.window.getByRole('button', { name: '撤销已读' }).click();
+    await expect(session.window.locator('#library-reader').getByText('在读', { exact: true })).toBeVisible();
+    await expect(session.window.locator('#library-reader').getByText('已读', { exact: true })).toHaveCount(0);
+
+    await session.window.getByRole('button', { name: '上一章' }).click();
+    await session.window.getByRole('button', { name: '目录', exact: true }).click();
+    await session.window.getByRole('dialog', { name: '目录' }).getByRole('button', { name: '第二章' }).click();
+    await expect(session.window.locator('#library-reader').getByText('已读', { exact: true })).toBeVisible();
+  } finally {
+    await session.close();
   }
 });
 
@@ -208,7 +233,7 @@ test('模型对来源的分析或摘要不会把书标为已读', async () => {
     const item = second.window.getByRole('listitem').filter({ hasText: '双章试读' });
     await expect(item.getByText('未读')).toBeVisible();
     await expect(item.getByText('已读')).toHaveCount(0);
-    await expect(item.getByText('阅读中')).toHaveCount(0);
+    await expect(item.getByText('在读')).toHaveCount(0);
   } finally {
     await second.close();
   }

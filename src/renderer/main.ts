@@ -18,7 +18,7 @@ const indexCopy: Record<IndexStatus, string> = {
 
 const readingCopy: Record<ReadingStatus, string> = {
   unread: '未读',
-  reading: '阅读中',
+  reading: '在读',
   read: '已读',
 };
 
@@ -438,7 +438,10 @@ function renderSourceNotes(notes: AtomicNote[]): void {
     const thought = document.createElement('p');
     thought.className = 'source-note-thought';
     thought.textContent = note.thought.trim() === '' ? '（无）' : note.thought;
-    button.append(quote, thought);
+    const kind = document.createElement('span');
+    kind.className = 'source-note-kind';
+    kind.textContent = note.kind === 'excerpt' ? '摘录' : '思想笔记';
+    button.append(kind, quote, thought);
     item.append(button);
     list.append(item);
   }
