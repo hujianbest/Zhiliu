@@ -67,7 +67,7 @@ export type SaveModelSettingsInput = {
 
 export type IndexStatus = 'pending' | 'indexing' | 'ready' | 'error';
 
-export type SourceKind = 'epub' | 'pdf';
+export type SourceKind = 'epub' | 'pdf' | 'web' | 'markdown';
 
 export type ReadingStatus = 'unread' | 'reading' | 'read';
 
@@ -79,6 +79,8 @@ export type SourceDocument = {
   indexStatus: IndexStatus;
   originalFilename: string;
   readingStatus: ReadingStatus;
+  sourceUrl?: string | null;
+  capturedAt?: string | null;
 };
 
 export type ImportFailure = {
@@ -177,6 +179,7 @@ export type ZhiliuApi = {
   library: {
     list(): Promise<SourceDocument[]>;
     importEpubs(): Promise<ImportResult>;
+    importUrl(url: string): Promise<ImportResult>;
     open(id: string): Promise<ReadingView>;
     turn(direction: TurnDirection): Promise<ReadingView>;
     jump(spineIndex: number): Promise<ReadingView>;

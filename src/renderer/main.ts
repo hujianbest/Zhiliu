@@ -353,7 +353,7 @@ function onReaderKey(event: KeyboardEvent): void {
   if (!isReading() || event.altKey || event.ctrlKey || event.metaKey) {
     return;
   }
-  if (settingsDialog().open || captureDialog().open || searchDialog().open || rollbackDialog().open || isTextEntry(event)) {
+  if (settingsDialog().open || captureDialog().open || searchDialog().open || rollbackDialog().open || urlDialog().open || isTextEntry(event)) {
     return;
   }
   if (event.shiftKey && (event.key === 'R' || event.key === 'r')) {
@@ -520,6 +520,9 @@ function formatSourcePosition(kind: SourceKind, spineIndex: number, range: Captu
     const box = [range.x0, range.y0, range.x1, range.y1].map((value) => Math.round(value));
     return `pdf:${spineIndex}:${range.start}:${range.end}:${box.join(':')}`;
   }
+  if (kind === 'web' || kind === 'markdown') {
+    return `web:${spineIndex}:${range.start}:${range.end}`;
+  }
   return `epub:${spineIndex}:${range.start}:${range.end}`;
 }
 
@@ -533,11 +536,11 @@ function parseSourcePosition(
   if (pdf) {
     return { kind: 'pdf', spineIndex: Number(pdf[1]), start: Number(pdf[2]), end: Number(pdf[3]) };
   }
-  const epub = /^epub:(\d+):(\d+):(\d+)$/.exec(value);
+  const epub = /^(?:epub|web):(\d+):(\d+):(\d+)$/.exec(value);
   if (!epub) {
     return null;
   }
-  return { kind: 'epub', spineIndex: Number(epub[1]), start: Number(epub[2]), end: Number(epub[3]) };
+  return { kind: value.startsWith('web:') ? 'web' : 'epub', spineIndex: Number(epub[1]), start: Number(epub[2]), end: Number(epub[3]) };
 }
 
 async function saveCapture(): Promise<void> {
@@ -1051,6 +1054,47 @@ document.getElementById('import-epub')?.addEventListener('click', () => {
   void window.zhiliu.library.importEpubs().then((result) => {
     renderLibrary(result.sources);
     showLibraryFailures(result.failures);
+    void refreshThoughts();
+  });
+});
+
+function urlDialog(): HTMLDialogElement {
+  return document.getElementById('url-dialog') as HTMLDialogElement;
+}
+
+document.getElementById('import-url')?.addEventListener('click', () => {
+  const error = document.getElementById('url-error');
+  if (error) {
+    error.hidden = true;
+    error.textContent = '';
+  }
+  const input = document.getElementById('url-input') as HTMLInputElement;
+  input.value = '';
+  urlDialog().showModal();
+  input.focus();
+});
+document.getElementById('url-cancel')?.addEventListener('click', () => {
+  urlDialog().close();
+});
+document.getElementById('url-form')?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const input = document.getElementById('url-input') as HTMLInputElement;
+  const error = document.getElementById('url-error');
+  void window.zhiliu.library.importUrl(input.value.trim()).then((result) => {
+    renderLibrary(result.sources);
+    if (result.failures.length > 0) {
+      if (error) {
+        error.hidden = false;
+        error.textContent = result.failures.map((failure) => failure.message).join(' ');
+      }
+      showLibraryFailures(result.failures);
+      return;
+    }
+    if (error) {
+      error.hidden = true;
+      error.textContent = '';
+    }
+    urlDialog().close();
     void refreshThoughts();
   });
 });

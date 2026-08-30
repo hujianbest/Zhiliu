@@ -38,6 +38,7 @@
             <p id="library-error" role="alert" hidden></p>
             <ul id="library-list" aria-label="书库"></ul>
             <button type="button" id="import-epub">导入 EPUB 或 PDF</button>
+            <button type="button" id="import-url">导入网页</button>
           </div>
           <div id="library-reader" hidden tabindex="-1">
             <div class="reader-bar">
@@ -143,7 +144,20 @@
         <p id="settings-saved" class="probe-status" role="status"></p>
       </form>
     </dialog>
-    <dialog id="rollback-dialog" aria-labelledby="rollback-title">
+    <dialog id="url-dialog" aria-labelledby="url-title">
+      <form id="url-form">
+        <h2 id="url-title">导入网页</h2>
+        <label>
+          文章网址
+          <input id="url-input" type="url" name="url" aria-label="文章网址" autocomplete="off" spellcheck="false" />
+        </label>
+        <p id="url-error" role="alert" hidden></p>
+        <div class="settings-actions">
+          <button type="submit">导入</button>
+          <button type="button" id="url-cancel">取消</button>
+        </div>
+      </form>
+    </dialog>
       <h2 id="rollback-title">回滚到此处</h2>
       <p>之后记下的内容会从知识库里撤掉，回到这一刻的样子。</p>
       <p id="rollback-summary"></p>

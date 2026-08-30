@@ -29,6 +29,7 @@ const api: ZhiliuApi = {
   library: {
     list: () => ipcRenderer.invoke('library:list'),
     importEpubs: () => ipcRenderer.invoke('library:import'),
+    importUrl: (url) => ipcRenderer.invoke('library:importUrl', url),
     open: (id) => ipcRenderer.invoke('library:open', id),
     turn: (direction) => ipcRenderer.invoke('library:turn', direction),
     jump: (spineIndex) => ipcRenderer.invoke('library:jump', spineIndex),

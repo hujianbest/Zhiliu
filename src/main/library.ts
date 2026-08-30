@@ -6,6 +6,7 @@ import { parseEpub } from './epub';
 import { parsePdf } from './pdf';
 import { readProgress } from './reading-ledger';
 import type { Vault } from './vault';
+import { importWebArticle } from './web';
 
 type CatalogSource = Omit<SourceDocument, 'readingStatus'>;
 
@@ -54,8 +55,7 @@ export class Library {
   }
 
   sourcePath(id: string, kind: SourceKind = 'epub'): string {
-    const ext = kind === 'pdf' ? 'pdf' : 'epub';
-    return path.join(this.requireRoot(), 'sources', `${id}.${ext}`);
+    return path.join(this.requireRoot(), 'sources', `${id}.${extensionFor(kind)}`);
   }
 
   root(): string {
@@ -75,6 +75,50 @@ export class Library {
       }
     }
     return { sources: await this.list(), failures };
+  }
+
+  async importUrl(url: string): Promise<ImportResult> {
+    const failures: ImportFailure[] = [];
+    try {
+      await this.importWeb(url);
+    } catch (error) {
+      failures.push({
+        filename: url,
+        message: error instanceof Error ? error.message : '无法导入这个页面',
+      });
+    }
+    return { sources: await this.list(), failures };
+  }
+
+  private async importWeb(url: string): Promise<CatalogSource> {
+    const root = this.requireRoot();
+    const article = await importWebArticle(url);
+    const id = randomUUID();
+    const dest = path.join(root, 'sources', `${id}.html`);
+    const header = [
+      `<!-- zhiliu-web source_url=${article.sourceUrl} captured_at=${article.capturedAt} -->`,
+      '',
+    ].join('\n');
+    await writeFile(dest, `${header}${article.html}\n`, 'utf8');
+    const source: CatalogSource = {
+      id,
+      kind: 'web',
+      title: article.title,
+      authors: article.authors,
+      indexStatus: 'pending',
+      originalFilename: article.sourceUrl,
+      sourceUrl: article.sourceUrl,
+      capturedAt: article.capturedAt,
+    };
+    try {
+      const current = await this.read();
+      current.sources.push(source);
+      await this.write(current);
+      return source;
+    } catch (error) {
+      await rm(dest, { force: true });
+      throw error;
+    }
   }
 
   private async importOne(filePath: string): Promise<CatalogSource> {
@@ -143,5 +187,18 @@ export class Library {
 }
 
 function stripExtension(filename: string): string {
-  return filename.replace(/\.epub$/i, '');
+  return filename.replace(/\.(epub|pdf)$/i, '');
+}
+
+function extensionFor(kind: SourceKind): string {
+  if (kind === 'pdf') {
+    return 'pdf';
+  }
+  if (kind === 'web') {
+    return 'html';
+  }
+  if (kind === 'markdown') {
+    return 'md';
+  }
+  return 'epub';
 }

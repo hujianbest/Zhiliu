@@ -42,6 +42,12 @@ export class Reading {
       chapters = extracted.pages.map((page) => ({ label: page.label, html: page.html }));
       toc = extracted.toc;
       textLayers = extracted.pages.map((page) => page.hasText);
+    } else if (source.kind === 'web' || source.kind === 'markdown') {
+      const html = bytes.toString('utf8').replace(/^<!-- zhiliu-web[\s\S]*?-->\s*/, '');
+      extractedTitle = source.title;
+      chapters = [{ label: source.title, html }];
+      toc = [{ label: source.title, spineIndex: 0 }];
+      textLayers = [true];
     } else {
       const extracted = await extractReading(bytes);
       extractedTitle = extracted.title;

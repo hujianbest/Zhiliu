@@ -161,6 +161,15 @@ ipcMain.handle('library:import', async () => {
   return result;
 });
 
+ipcMain.handle('library:importUrl', async (_event, url: string) => {
+  const result = await library.importUrl(typeof url === 'string' ? url : '');
+  if (result.failures.length === 0) {
+    await git.commit('导入来源文档');
+    void search.indexImportedSources();
+  }
+  return result;
+});
+
 app.whenReady().then(async () => {
   utilityWorker = new UtilityWorkerHost();
   await vault.openFromEnvironment();

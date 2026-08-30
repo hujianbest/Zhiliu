@@ -20,7 +20,7 @@ function stripTags(html: string): string {
 }
 
 function parseSpine(position: string | null): number {
-  const match = /^(?:epub|pdf):(\d+):/.exec(position ?? '');
+  const match = /^(?:epub|pdf|web):(\d+):/.exec(position ?? '');
   return match ? Number(match[1]) : 0;
 }
 
@@ -161,7 +161,7 @@ export class SearchIndex {
 
   private async embedMissing(): Promise<void> {
     for (const doc of this.docs) {
-      if ((doc.kind === 'epub' || doc.kind === 'pdf') && !this.vectors.has(doc.id)) {
+      if ((doc.kind === 'epub' || doc.kind === 'pdf' || doc.kind === 'article') && !this.vectors.has(doc.id)) {
         await this.upsertVector(doc);
       }
     }
@@ -216,6 +216,21 @@ export class SearchIndex {
               spineIndex,
               partialIndex,
             });
+          });
+          continue;
+        }
+        if (source.kind === 'web' || source.kind === 'markdown') {
+          const raw = await readFile(this.library.sourcePath(source.id, source.kind), 'utf8');
+          docs.push({
+            id: `article:${source.id}:0`,
+            kind: 'article',
+            title: source.title,
+            text: stripTags(raw),
+            sourceId: source.id,
+            noteId: '',
+            sourcePosition: `web:0:0:0`,
+            spineIndex: 0,
+            partialIndex: source.indexStatus !== 'ready',
           });
           continue;
         }
