@@ -245,7 +245,8 @@ test('收件箱双队列与主题来源一致，书库发现文案不含第一�
       return view.inbox.map((item) => ({ origin: item.origin, topicOrigin: view.topics.find((topic) => topic.id === item.topicId)?.origin }));
     });
     expect(moved.some((item) => item.origin === 'thought-signal' && item.origin === item.topicOrigin)).toBeTruthy();
-    await expect(session.window.getByRole('list', { name: '你的思想线索' }).getByText('思想线索')).toBeVisible();
+    await session.window.getByRole('button', { name: '创作' }).click();
+    await expect(session.window.getByRole('list', { name: '你的思想线索' }).getByText('你的思想线索：')).toBeVisible();
   } finally {
     await session.close();
   }

@@ -230,8 +230,10 @@ test('导出可关脚注且不含凭据；试写稿转正产生新正式稿；�
     expect(beforeSearch.some((hit) => hit.snippet.includes('试写稿正文探针'))).toBeFalsy();
     const proposal = await session.window.evaluate(async (id) => window.zhiliu.workbench.promoteTrial(id), trial.id);
     await session.window.evaluate(async (id) => window.zhiliu.workbench.setThesis(id, '转正论点。'), proposal.id);
-    const formal = await session.window.evaluate(async () =>
-      window.zhiliu.workbench.createManuscript({ kind: 'formal', title: '新的正式稿', body: '正式稿正文。', trialId: trial.id }),
+    const formal = await session.window.evaluate(
+      async (trialId) =>
+        window.zhiliu.workbench.createManuscript({ kind: 'formal', title: '新的正式稿', body: '正式稿正文。', trialId }),
+      trial.id,
     );
     expect(formal.id).not.toBe(trial.id);
     const stillTrial = await session.window.evaluate(async () => window.zhiliu.workbench.view());
