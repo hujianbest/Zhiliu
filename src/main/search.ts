@@ -125,7 +125,7 @@ export class SearchIndex {
         id: `bench:${i}`,
         kind: 'epub',
         title: `规模分块 ${i}`,
-        text: `bench_chunk_${i} scale filler for the two-hundred-thousand chunk budget`,
+        text: `zhiliuchunk${i} scale filler for the two-hundred-thousand chunk budget`,
         sourceId: `bench-source-${Math.floor(i / 800)}`,
         noteId: '',
         sourcePosition: `epub:0:${i}:${i}`,

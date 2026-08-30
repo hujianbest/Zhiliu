@@ -98,7 +98,7 @@ test('一万条笔记与二十万块分块满足写死的性能预算', async ()
     expect(Date.now() - seedStarted).toBeLessThanOrEqual(CHUNK_BUDGET.seedMs);
 
     const chunkSamples: number[] = [];
-    for (const token of ['bench_chunk_0', 'bench_chunk_123456', 'bench_chunk_199999', 'bench_chunk_50', 'bench_chunk_99999']) {
+    for (const token of ['zhiliuchunk0', 'zhiliuchunk123456', 'zhiliuchunk199999', 'zhiliuchunk50', 'zhiliuchunk99999']) {
       const t0 = Date.now();
       const found = await session.window.evaluate(async (query) => window.zhiliu.search.query(query, { mode: 'keyword' }), token);
       chunkSamples.push(Date.now() - t0);
