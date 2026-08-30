@@ -19,7 +19,7 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron', 'keytar'],
+    external: ['electron', 'keytar', 'onnxruntime-node'],
     logLevel: 'info',
   }),
   esbuild.build({
@@ -30,7 +30,7 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron', 'keytar'],
+    external: ['electron', 'keytar', 'onnxruntime-node'],
     logLevel: 'info',
   }),
   esbuild.build({

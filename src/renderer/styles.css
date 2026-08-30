@@ -475,6 +475,7 @@ dialog button:focus-visible,
 #toc-close:focus-visible,
 #search-close:focus-visible,
 #search-query:focus-visible,
+#search-semantic:focus-visible,
 #search-results button:focus-visible,
 #reader-notes-list button:focus-visible,
 #capture-thought:focus-visible,
@@ -535,6 +536,23 @@ dialog button,
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.search-semantic {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  margin-bottom: var(--space-4);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+
+.search-semantic input {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-height: 0;
+  accent-color: var(--color-accent);
 }
 
 #search-empty {

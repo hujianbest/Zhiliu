@@ -1,4 +1,4 @@
-import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SearchHit, SearchKind, SourceDocument, TocEntry } from '../shared/api';
+import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SearchHit, SearchKind, SearchMode, SourceDocument, TocEntry } from '../shared/api';
 
 const spaces = ['library', 'thoughts', 'creation'] as const;
 type Space = (typeof spaces)[number];
@@ -547,6 +547,14 @@ function searchQuery(): HTMLInputElement {
   return document.getElementById('search-query') as HTMLInputElement;
 }
 
+function searchSemantic(): HTMLInputElement {
+  return document.getElementById('search-semantic') as HTMLInputElement;
+}
+
+function currentSearchMode(): SearchMode {
+  return searchSemantic()?.checked === false ? 'keyword' : 'mix';
+}
+
 function openSearch(): void {
   if (!appReady()) {
     return;
@@ -617,7 +625,7 @@ async function runSearch(): Promise<void> {
   const seq = ++searchSeq;
   const list = document.getElementById('search-results');
   list?.setAttribute('aria-busy', 'true');
-  const hits = await window.zhiliu.search.query(q);
+  const hits = await window.zhiliu.search.query(q, { mode: currentSearchMode() });
   if (seq !== searchSeq) {
     return;
   }
@@ -969,6 +977,9 @@ document.getElementById('search-close')?.addEventListener('click', () => {
   closeSearch();
 });
 document.getElementById('search-query')?.addEventListener('input', () => {
+  void runSearch();
+});
+document.getElementById('search-semantic')?.addEventListener('change', () => {
   void runSearch();
 });
 document.getElementById('search-results')?.addEventListener('click', (event) => {

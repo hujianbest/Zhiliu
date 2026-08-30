@@ -122,6 +122,16 @@ export type SearchHit = {
   partialIndex: boolean;
 };
 
+export type SearchMode = 'keyword' | 'semantic' | 'mix';
+
+export type SearchQueryOptions = {
+  mode?: SearchMode;
+};
+
+export type EmbedCall = {
+  id: string;
+};
+
 export type ZhiliuApi = {
   vault: {
     current(): Promise<VaultStatus>;
@@ -133,7 +143,8 @@ export type ZhiliuApi = {
     listForSource(sourceId: string): Promise<AtomicNote[]>;
   };
   search: {
-    query(q: string): Promise<SearchHit[]>;
+    query(q: string, options?: SearchQueryOptions): Promise<SearchHit[]>;
+    embedCalls(): Promise<EmbedCall[]>;
   };
   models: {
     view(): Promise<ModelSettingsView>;

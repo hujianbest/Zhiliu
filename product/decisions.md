@@ -8,3 +8,4 @@
 - D-6 2026-08-30 每本书的阅读位置与已读标记存在知识库 `.zhiliu/reading.json`；阅读器是否打开记在 userData `openSourceId`；目录来自 EPUB nav — 依据: 票 06 与 ADR-0006。
 - D-7 2026-08-30 EPUB 划选位置记为 `epub:<spineIndex>:<startOffset>:<endOffset>`；捕获不离开阅读界面 — 依据: 票 07 与 ADR-0007。
 - D-8 2026-08-30 全局检索是对话框（Ctrl+K），不是第四空间；主进程内存全文索引笔记与 EPUB 章节，EPUB 来源保持 pending 故书籍命中标注部分索引 — 依据: 票 08 与 ADR-0008。
+- D-9 2026-08-30 全文 MiniSearch + 本地 multilingual-e5-small（ONNX、默认 CPU，GPU 可选）；主套件假 Embedding 适配器；向量按笔记/章节 id 增量 upsert — 依据: 票 09 与 ADR-0009。

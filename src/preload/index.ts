@@ -12,7 +12,8 @@ const api: ZhiliuApi = {
     listForSource: (sourceId) => ipcRenderer.invoke('notes:listForSource', sourceId),
   },
   search: {
-    query: (q: string) => ipcRenderer.invoke('search:query', q),
+    query: (q, options) => ipcRenderer.invoke('search:query', q, options),
+    embedCalls: () => ipcRenderer.invoke('search:embedCalls'),
   },
   models: {
     view: () => ipcRenderer.invoke('models:view'),

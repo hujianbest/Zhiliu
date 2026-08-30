@@ -1,7 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
-import type { SaveModelSettingsInput, SaveNoteInput, TurnDirection } from '../shared/api';
+import type { SaveModelSettingsInput, SaveNoteInput, SearchQueryOptions, TurnDirection } from '../shared/api';
 import { createCredentialStore } from './credentials';
+import { createEmbeddingAdapter } from './embeddings';
 import { Library } from './library';
 import { ModelSettings } from './models';
 import { PreferenceStore } from './preferences';
@@ -25,7 +26,7 @@ const preferences = new PreferenceStore(app.getPath('userData'));
 const vault = new Vault(preferences, process.env);
 const library = new Library(vault, process.env);
 const reading = new Reading(library, preferences);
-const search = new SearchIndex(vault, library);
+const search = new SearchIndex(vault, library, createEmbeddingAdapter(process.env));
 const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
 
 function createWindow(): void {
@@ -75,12 +76,15 @@ ipcMain.handle('vault:choose', async () => {
 
 ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => {
   const note = await vault.saveNote(input);
-  await search.rebuild();
+  await search.indexNote(note);
   return note;
 });
 ipcMain.handle('notes:get', async (_event, id: string) => vault.getNote(id));
 ipcMain.handle('notes:listForSource', async (_event, sourceId: string) => vault.listNotesForSource(sourceId));
-ipcMain.handle('search:query', async (_event, q: string) => search.query(typeof q === 'string' ? q : ''));
+ipcMain.handle('search:query', async (_event, q: string, options?: SearchQueryOptions) =>
+  search.query(typeof q === 'string' ? q : '', options),
+);
+ipcMain.handle('search:embedCalls', async () => search.embedCalls());
 ipcMain.handle('models:view', async () => models.view());
 ipcMain.handle('models:save', async (_event, input: SaveModelSettingsInput) => models.save(input));
 ipcMain.handle(
@@ -104,7 +108,7 @@ ipcMain.handle('library:import', async () => {
   const stub = library.stubbedFiles();
   if (stub) {
     const result = await library.importPaths(stub);
-    await search.rebuild();
+    await search.indexImportedSources();
     return result;
   }
   const picked = await dialog.showOpenDialog({
@@ -116,7 +120,7 @@ ipcMain.handle('library:import', async () => {
     return { sources: await library.list(), failures: [] };
   }
   const result = await library.importPaths(picked.filePaths);
-  await search.rebuild();
+  await search.indexImportedSources();
   return result;
 });
 
