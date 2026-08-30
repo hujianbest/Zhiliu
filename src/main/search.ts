@@ -138,11 +138,30 @@ export class SearchIndex {
   }
 
   async indexNote(note: AtomicNote): Promise<void> {
-    await this.rebuildKeyword();
-    const doc = this.docs.find((item) => item.id === `note:${note.id}`);
-    if (doc) {
-      await this.upsertVector(doc);
+    if (!this.vault.path) {
+      return;
     }
+    this.keyword.open(this.vault.path);
+    const doc: KeywordDoc = {
+      id: `note:${note.id}`,
+      kind: 'note',
+      title: note.thought.trim() || note.quotation.slice(0, 40) || '笔记',
+      text: `${note.quotation}\n${note.thought}`,
+      sourceId: note.sourceId ?? '',
+      noteId: note.id,
+      sourcePosition: note.sourcePosition ?? '',
+      spineIndex: parseSpine(note.sourcePosition),
+      partialIndex: false,
+      provenance: note.kind === 'thought_note' ? 'user' : 'source',
+    };
+    const index = this.docs.findIndex((item) => item.id === doc.id);
+    if (index >= 0) {
+      this.docs[index] = doc;
+    } else {
+      this.docs.push(doc);
+    }
+    this.keyword.upsert(doc);
+    await this.upsertVector(doc);
   }
 
   async indexImportedSources(): Promise<void> {

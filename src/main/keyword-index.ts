@@ -171,6 +171,17 @@ export class KeywordIndex {
     tx();
   }
 
+  upsert(doc: KeywordDoc): void {
+    const db = this.requireDb();
+    const tx = db.transaction(() => {
+      db.prepare('DELETE FROM docs WHERE id = ?').run(doc.id);
+      db.prepare('DELETE FROM fts_latin WHERE id = ?').run(doc.id);
+      db.prepare('DELETE FROM fts_cjk WHERE id = ?').run(doc.id);
+      this.insertDocs(db, [doc]);
+    });
+    tx();
+  }
+
   appendAll(docs: KeywordDoc[]): void {
     const db = this.requireDb();
     const tx = db.transaction(() => {
