@@ -10,6 +10,6 @@
 - A-8 2026-08-30 [生效] AUTO：每本书的阅读位置与已读标记存在知识库 `.zhiliu/reading.json`（随目录复制走）；「阅读器是否打开」记在 userData，以便重启回到原处、但拷贝知识库不会在另一台电脑强行打开书 — 默认理由: 现票 07；窗口态不进知识库。
 - A-9 2026-08-30 [生效] AUTO：打开或翻页把未读变为在读；**到达末章**（下一章或目录跳转，且上一位置不是末章）自动已读；用户也可显式「标记已读 / 撤销已读」。撤销后即使仍停在末章也保持在读，直到再次到达末章。目录来自 EPUB nav，可见「目录」按钮与快捷键 T。Agent 分析通道即使被调用也不得改阅读状态 — 默认理由: 票 07 与 US 25。
 - A-10 2026-08-30 [生效] AUTO：阅读划选用可见「记下这段」与 Ctrl+M；回车保存想法、Shift+Enter 换行；sourcePosition 为 `epub:<spineIndex>:<startOffset>:<endOffset>` 字符串，足够跳回章节并滚动到引文。捕获不离开阅读界面 — 默认理由: 票 07 与 spec 键盘优先捕获。
-- A-11 2026-08-30 [生效] AUTO：全文检索是全局对话框（可见「检索」+ Ctrl+K），不新增第四空间。主进程索引笔记 Markdown 与 EPUB 抽出正文；`indexStatus !== ready` 的来源在结果中标「部分索引」。**过渡**引擎是 MiniSearch；评审后票 09 要求 FTS5 — 默认理由: 旧票 08 实现时尚未有 ADR-0006/0008。
+- A-11 2026-08-30 [生效] AUTO：全文检索是全局对话框（可见「检索」+ Ctrl+K），不新增第四空间。关键词引擎是知识库 `.zhiliu/cache/search.sqlite` 上的 SQLite FTS5：拉丁文走 unicode61，中日韩走 trigram，少于三字的中文走 `LIKE`。`indexStatus !== ready` 的来源在结果中标「部分索引」。 — 默认理由: 票 09、ADR-0006、ADR-0008、ADR-0023。
 - A-12 2026-08-30 [生效] AUTO：语义检索主套件用假 Embedding 适配器（`ZHILIU_E2E=1`）。生产路径按评审后 ADR-0007（bekko-a8m）与 ADR-0006（BM25 主力），由现票 12 改写 — 默认理由: 旧票 09 实现时尚未有 bekko/BM25 决定。
 - A-13 2026-08-30 [生效] AUTO：票 06 在 Linux 云环境产出 `electron-builder` 的 Linux `dir` 布局，作为 Playwright 启动打包二进制的测试缝；Windows NSIS 与 macOS 自签 DMG 的配置与拒绝 ad-hoc 的门禁已写入 `scripts/pack.mjs`，真实签名产物与 Gatekeeper/SmartScreen 弹窗必须在对应操作系统上由人核对。证书私钥不进仓库。 — 默认理由: 本环境不是 macOS/Windows 构建机，不能假装已经完成跨平台签名与人工弹窗核对。

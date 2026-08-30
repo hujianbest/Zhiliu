@@ -1,61 +1,15 @@
 import { readFile } from 'node:fs/promises';
-import MiniSearch from 'minisearch';
 import sanitizeHtml from 'sanitize-html';
-import type { AtomicNote, EmbedCall, SearchHit, SearchKind, SearchQueryOptions } from '../shared/api';
+import type { AtomicNote, EmbedCall, SearchHit, SearchQueryOptions } from '../shared/api';
 import type { EmbeddingAdapter } from './embeddings';
 import { extractReading } from './epub';
+import { KeywordIndex, type KeywordDoc } from './keyword-index';
 import type { Library } from './library';
 import type { Vault } from './vault';
 
-const CJK = /[\u3400-\u9fff\uf900-\ufaff]/u;
 const SEMANTIC_THRESHOLD = 0.5;
 
-export function tokenize(text: string): string[] {
-  const tokens: string[] = [];
-  const lower = text.normalize('NFKC').toLowerCase();
-  const latin = lower.match(/[a-z0-9]+/g);
-  if (latin) {
-    tokens.push(...latin);
-  }
-  const cjk: string[] = [];
-  for (const ch of lower) {
-    if (CJK.test(ch)) {
-      cjk.push(ch);
-    }
-  }
-  tokens.push(...cjk);
-  for (let i = 0; i < cjk.length - 1; i += 1) {
-    tokens.push(`${cjk[i]}${cjk[i + 1]}`);
-  }
-  return tokens.filter((token) => token.length > 0);
-}
-
-type IndexedDoc = {
-  id: string;
-  kind: SearchKind;
-  title: string;
-  text: string;
-  sourceId: string;
-  noteId: string;
-  sourcePosition: string;
-  spineIndex: number;
-  partialIndex: boolean;
-};
-
-type VectorDoc = IndexedDoc & { vector: number[] };
-
-function createEngine(): MiniSearch<IndexedDoc> {
-  return new MiniSearch<IndexedDoc>({
-    fields: ['title', 'text'],
-    storeFields: ['kind', 'title', 'text', 'sourceId', 'noteId', 'sourcePosition', 'spineIndex', 'partialIndex'],
-    tokenize,
-    searchOptions: {
-      boost: { title: 2, text: 1 },
-      prefix: true,
-      combineWith: 'AND',
-    },
-  });
-}
+type VectorDoc = KeywordDoc & { vector: number[] };
 
 function stripTags(html: string): string {
   return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} })
@@ -106,7 +60,7 @@ function hitKey(hit: SearchHit): string {
   return `${hit.kind}:${hit.sourceId}:${hit.spineIndex ?? 0}`;
 }
 
-function toHit(doc: IndexedDoc, query: string): SearchHit {
+function toHit(doc: KeywordDoc, query: string): SearchHit {
   const hit: SearchHit = {
     kind: doc.kind,
     title: doc.title,
@@ -133,8 +87,8 @@ function parseOptions(options: SearchQueryOptions | undefined): SearchQueryOptio
 }
 
 export class SearchIndex {
-  private engine = createEngine();
-  private docs: IndexedDoc[] = [];
+  private docs: KeywordDoc[] = [];
+  private readonly keyword = new KeywordIndex();
   private readonly vectors = new Map<string, VectorDoc>();
 
   constructor(
@@ -179,7 +133,7 @@ export class SearchIndex {
       return [];
     }
     const mode = parseOptions(options).mode ?? 'mix';
-    const keywordHits = mode === 'semantic' ? [] : this.keywordQuery(trimmed);
+    const keywordHits = mode === 'semantic' ? [] : this.keyword.query(trimmed);
     const semanticHits = mode === 'keyword' ? [] : await this.semanticQuery(trimmed);
     if (mode === 'keyword') {
       return keywordHits;
@@ -191,14 +145,17 @@ export class SearchIndex {
   }
 
   private async rebuildKeyword(): Promise<void> {
-    this.engine = createEngine();
-    this.docs = await this.collectDocs();
-    if (this.docs.length > 0) {
-      this.engine.addAll(this.docs);
+    if (!this.vault.path) {
+      this.docs = [];
+      this.keyword.close();
+      return;
     }
+    this.keyword.open(this.vault.path);
+    this.docs = await this.collectDocs();
+    this.keyword.replaceAll(this.docs);
   }
 
-  private async upsertVector(doc: IndexedDoc): Promise<void> {
+  private async upsertVector(doc: KeywordDoc): Promise<void> {
     try {
       const vector = await this.embeddings.embed(doc.id, doc.text);
       this.vectors.set(doc.id, { ...doc, vector });
@@ -207,11 +164,11 @@ export class SearchIndex {
     }
   }
 
-  private async collectDocs(): Promise<IndexedDoc[]> {
+  private async collectDocs(): Promise<KeywordDoc[]> {
     if (!this.vault.path) {
       return [];
     }
-    const docs: IndexedDoc[] = [];
+    const docs: KeywordDoc[] = [];
     const sources = await this.library.list();
     const titles = new Map(sources.map((source) => [source.id, source.title]));
 
@@ -256,14 +213,6 @@ export class SearchIndex {
     }
 
     return docs;
-  }
-
-  private keywordQuery(trimmed: string): SearchHit[] {
-    try {
-      return this.engine.search(trimmed).map((result) => toHit(result as IndexedDoc, trimmed));
-    } catch {
-      return [];
-    }
   }
 
   private async semanticQuery(trimmed: string): Promise<SearchHit[]> {

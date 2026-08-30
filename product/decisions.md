@@ -7,5 +7,5 @@
 - D-5 2026-08-30 主进程按 OPF spine 抽出章节、净化后交给无 `allow-scripts` 的 iframe 阅读 — 依据: 票 05 与 `docs/adr/0017-epub-sanitized-iframe-reading.md`。框架选型是评审后的 ADR-0005。
 - D-6 2026-08-30 每本书的阅读位置与已读标记存在知识库 `.zhiliu/reading.json`；阅读器是否打开记在 userData `openSourceId` — 依据: 现票 07 与 `docs/adr/0018-reading-progress-vault-vs-userdata.md`。
 - D-7 2026-08-30 EPUB 划选位置记为 `epub:<spineIndex>:<startOffset>:<endOffset>` — 依据: 现票 08 与 `docs/adr/0019-epub-source-position-string.md`。
-- D-8 2026-08-30 全局检索是对话框（Ctrl+K）。**当前**关键词引擎是 MiniSearch（`docs/adr/0020-interim-minisearch-keyword-index.md`）；评审后的产品决定是 ADR-0006 BM25 + ADR-0008 FTS5，由现票 09 改写。
+- D-8 2026-08-30 全局检索是对话框（Ctrl+K）。关键词引擎是 SQLite FTS5（`docs/adr/0023-sqlite-fts5-keyword-search.md`）；混合检索的向量侧仍由票 12 按 ADR-0006/0007 改写。
 - D-9 2026-08-30 主套件用假 Embedding 适配器证明跨语言召回（`docs/adr/0021-e2e-fake-embedding-adapter.md`）；生产模型是 ADR-0007 bekko-a8m，由现票 12 落地。

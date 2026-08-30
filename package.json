@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.18.0",
     "@types/sanitize-html": "^2.16.1",
     "electron": "^38.2.0",
@@ -28,9 +29,9 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "better-sqlite3": "^12.11.1",
     "gray-matter": "^4.0.3",
     "jszip": "^3.10.1",
-    "minisearch": "^7.2.0",
     "sanitize-html": "^2.17.7"
   },
   "optionalDependencies": {

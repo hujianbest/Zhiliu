@@ -1,3 +1,4 @@
+import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
@@ -76,6 +77,22 @@ test('检索中文想法可以命中笔记并跳回引文', async () => {
     await expect(dialog).toBeHidden();
     await expect(session.window.getByRole('button', { name: '返回书库' })).toBeVisible();
     await expect(session.window.frameLocator('iframe[title="正文"]').getByText(firesideSentence)).toBeVisible();
+  } finally {
+    await session.close();
+  }
+});
+
+test('两字中文词也可以命中笔记', async () => {
+  const session = await launchZhiliu({ chooseFiles: [fireside] });
+  try {
+    await importAndOpen(session.window, '炉边小札');
+    await captureThought(session.window, chineseThought);
+    const dialog = await openSearch(session.window);
+    await dialog.getByRole('searchbox').fill('青瓷');
+    const hit = dialog.getByRole('list', { name: '检索结果' }).getByRole('button').filter({ hasText: '笔记' });
+    await expect(hit).toBeVisible();
+    await expect(hit).toContainText('青瓷');
+    await access(path.join(session.vaultPath as string, '.zhiliu', 'cache', 'search.sqlite'));
   } finally {
     await session.close();
   }
