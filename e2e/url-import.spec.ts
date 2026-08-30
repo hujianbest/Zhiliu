@@ -13,7 +13,7 @@ const articleHtml = `<!DOCTYPE html>
 <article>
 <script>window.__pwned = true;</script>
 <h1>窗边的雨</h1>
-<p>公开网页里的一句可检索正文：青石阶还没干。</p>
+<p>公开网页里的一句可检索正文：青石阶还没干。雨停之后石缝里还留着昨夜的潮气，巷口的灯也还亮着。</p>
 </article>
 </body></html>`;
 

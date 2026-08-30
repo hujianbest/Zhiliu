@@ -77,7 +77,7 @@ export async function importWebArticle(url: string): Promise<WebArticle> {
     },
   });
   const text = sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} }).replace(/\s+/g, ' ').trim();
-  if (text.length < 40) {
+  if (text.length < 20) {
     throw new Error('无法导入：没有可提取的正文');
   }
 
