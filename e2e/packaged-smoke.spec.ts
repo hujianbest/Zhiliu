@@ -31,7 +31,7 @@ test('打包应用可以启动、打开文件、读取凭据并完成一次 EPUB
   const secret = 'sk-packaged-smoke-key';
   try {
     await expect(session.window.getByRole('button', { name: '书库/阅读' })).toBeVisible();
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     const item = session.window.getByRole('listitem').filter({ hasText: '炉边小札' });
     await expect(item).toBeVisible();
     await item.getByRole('button', { name: '炉边小札' }).click();

@@ -15,7 +15,7 @@ const chapterOneSentence = '第一章独有句：北窗的灯还亮着。';
 test.describe.configure({ mode: 'serial' });
 
 async function importAndOpen(window: Page, title: string): Promise<void> {
-  await window.getByRole('button', { name: '导入 EPUB' }).click();
+  await window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
   await window.getByRole('button', { name: title }).click();
 }
 

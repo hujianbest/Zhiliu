@@ -5,6 +5,7 @@ import type { EmbeddingAdapter } from './embeddings';
 import { extractReading } from './epub';
 import { KeywordIndex, type KeywordDoc } from './keyword-index';
 import type { Library } from './library';
+import { extractPdfReading } from './pdf';
 import type { Vault } from './vault';
 
 const SEMANTIC_THRESHOLD = 0.5;
@@ -18,7 +19,7 @@ function stripTags(html: string): string {
 }
 
 function parseSpine(position: string | null): number {
-  const match = /^epub:(\d+):/.exec(position ?? '');
+  const match = /^(?:epub|pdf):(\d+):/.exec(position ?? '');
   return match ? Number(match[1]) : 0;
 }
 
@@ -121,7 +122,7 @@ export class SearchIndex {
   async indexImportedSources(): Promise<void> {
     await this.rebuildKeyword();
     for (const doc of this.docs) {
-      if (doc.kind === 'epub' && !this.vectors.has(doc.id)) {
+      if ((doc.kind === 'epub' || doc.kind === 'pdf') && !this.vectors.has(doc.id)) {
         await this.upsertVector(doc);
       }
     }
@@ -188,11 +189,29 @@ export class SearchIndex {
     }
 
     for (const source of sources) {
-      if (source.kind !== 'epub') {
-        continue;
-      }
       try {
-        const extracted = await extractReading(await readFile(this.library.sourcePath(source.id)));
+        if (source.kind === 'pdf') {
+          const extracted = await extractPdfReading(await readFile(this.library.sourcePath(source.id, source.kind)));
+          const partialIndex = source.indexStatus !== 'ready';
+          extracted.pages.forEach((page, spineIndex) => {
+            docs.push({
+              id: `pdf:${source.id}:${spineIndex}`,
+              kind: 'pdf',
+              title: source.title,
+              text: stripTags(page.html),
+              sourceId: source.id,
+              noteId: '',
+              sourcePosition: `pdf:${spineIndex}:0:0:0:0:0:0`,
+              spineIndex,
+              partialIndex,
+            });
+          });
+          continue;
+        }
+        if (source.kind !== 'epub') {
+          continue;
+        }
+        const extracted = await extractReading(await readFile(this.library.sourcePath(source.id, source.kind)));
         const partialIndex = source.indexStatus !== 'ready';
         extracted.chapters.forEach((chapter, spineIndex) => {
           docs.push({

@@ -1,4 +1,4 @@
-import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SearchHit, SearchKind, SearchMode, SourceDocument, TocEntry } from '../shared/api';
+import type { AtomicNote, ImportResult, IndexStatus, ModelRole, ModelSettingsView, ProbeResult, ReadingStatus, ReadingView, SearchHit, SearchKind, SearchMode, SourceDocument, SourceKind, TocEntry } from '../shared/api';
 
 const spaces = ['library', 'thoughts', 'creation'] as const;
 type Space = (typeof spaces)[number];
@@ -25,6 +25,8 @@ const readingCopy: Record<ReadingStatus, string> = {
 let currentSourceId: string | null = null;
 let currentStatus: ReadingStatus = 'unread';
 let currentSpineIndex = 0;
+let currentKind: SourceKind = 'epub';
+let currentHasTextLayer = true;
 let lastSelection: CaptureRange | null = null;
 let captureDraft: CaptureDraft | null = null;
 let pendingHighlight: HighlightTarget | null = null;
@@ -35,6 +37,7 @@ let searchSeq = 0;
 
 const searchKindCopy: Record<SearchKind, string> = {
   epub: '书籍',
+  pdf: 'PDF',
   note: '笔记',
   article: '文章',
   draft: '草稿',
@@ -44,6 +47,10 @@ type CaptureRange = {
   quotation: string;
   start: number;
   end: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
 };
 
 type CaptureDraft = CaptureRange & {
@@ -344,7 +351,18 @@ function readSelection(doc: Document): CaptureRange | null {
   if (start < 0 || end <= start) {
     return null;
   }
-  return { quotation, start, end };
+  const rect = range.getBoundingClientRect();
+  const page = doc.querySelector('.pdf-page') as HTMLElement | null;
+  const origin = page?.getBoundingClientRect() ?? { left: 0, top: 0 };
+  return {
+    quotation,
+    start,
+    end,
+    x0: rect.left - origin.left,
+    y0: rect.top - origin.top,
+    x1: rect.right - origin.left,
+    y1: rect.bottom - origin.top,
+  };
 }
 
 function currentCaptureRange(): CaptureRange | null {
@@ -371,6 +389,10 @@ function beginCapture(): void {
   if (!isReading() || !currentSourceId || captureDialog().open || settingsDialog().open || tocDialog().open || searchDialog().open) {
     return;
   }
+  if (!currentHasTextLayer) {
+    showCaptureHint('这份来源没有文本层，本版本无法选中文字。');
+    return;
+  }
   const range = currentCaptureRange();
   if (!range) {
     showCaptureHint('请先选中要记下的文字。');
@@ -387,19 +409,29 @@ function beginCapture(): void {
   captureThought().focus();
 }
 
-function formatSourcePosition(spineIndex: number, start: number, end: number): string {
-  return `epub:${spineIndex}:${start}:${end}`;
+function formatSourcePosition(kind: SourceKind, spineIndex: number, range: CaptureRange): string {
+  if (kind === 'pdf') {
+    const box = [range.x0, range.y0, range.x1, range.y1].map((value) => Math.round(value));
+    return `pdf:${spineIndex}:${range.start}:${range.end}:${box.join(':')}`;
+  }
+  return `epub:${spineIndex}:${range.start}:${range.end}`;
 }
 
-function parseSourcePosition(value: string | null): { spineIndex: number; start: number; end: number } | null {
+function parseSourcePosition(
+  value: string | null,
+): { kind: SourceKind; spineIndex: number; start: number; end: number } | null {
   if (!value) {
     return null;
   }
-  const match = /^epub:(\d+):(\d+):(\d+)$/.exec(value);
-  if (!match) {
+  const pdf = /^pdf:(\d+):(\d+):(\d+):(-?\d+):(-?\d+):(-?\d+):(-?\d+)$/.exec(value);
+  if (pdf) {
+    return { kind: 'pdf', spineIndex: Number(pdf[1]), start: Number(pdf[2]), end: Number(pdf[3]) };
+  }
+  const epub = /^epub:(\d+):(\d+):(\d+)$/.exec(value);
+  if (!epub) {
     return null;
   }
-  return { spineIndex: Number(match[1]), start: Number(match[2]), end: Number(match[3]) };
+  return { kind: 'epub', spineIndex: Number(epub[1]), start: Number(epub[2]), end: Number(epub[3]) };
 }
 
 async function saveCapture(): Promise<void> {
@@ -411,7 +443,7 @@ async function saveCapture(): Promise<void> {
     quotation: draft.quotation,
     thought: captureThought().value,
     sourceId: draft.sourceId,
-    sourcePosition: formatSourcePosition(draft.spineIndex, draft.start, draft.end),
+    sourcePosition: formatSourcePosition(currentKind, draft.spineIndex, draft),
   });
   captureDraft = null;
   captureDialog().close();
@@ -533,7 +565,7 @@ async function jumpToSourceNote(note: AtomicNote): Promise<void> {
   if (!parsed || !isReading()) {
     return;
   }
-  pendingHighlight = { quotation: note.quotation, start: parsed.start, end: parsed.end };
+  pendingHighlight = { quotation: note.quotation, start: parsed.start, end: parsed.end, x0: 0, y0: 0, x1: 0, y1: 0 };
   showReading(await window.zhiliu.library.jump(parsed.spineIndex));
 }
 
@@ -646,8 +678,8 @@ async function revealNote(note: AtomicNote): Promise<void> {
   }
   const parsed = parseSourcePosition(note.sourcePosition);
   pendingHighlight = parsed
-    ? { quotation: note.quotation, start: parsed.start, end: parsed.end }
-    : { quotation: note.quotation, start: -1, end: -1 };
+    ? { quotation: note.quotation, start: parsed.start, end: parsed.end, x0: 0, y0: 0, x1: 0, y1: 0 }
+    : { quotation: note.quotation, start: -1, end: -1, x0: 0, y0: 0, x1: 0, y1: 0 };
   let view = await window.zhiliu.library.open(note.sourceId);
   if (parsed && view.spineIndex !== parsed.spineIndex) {
     view = await window.zhiliu.library.jump(parsed.spineIndex);
@@ -669,7 +701,7 @@ async function openSearchHit(hit: SearchHit): Promise<void> {
   if (!hit.sourceId) {
     return;
   }
-  pendingHighlight = { quotation: lastSearchQuery, start: -1, end: -1 };
+  pendingHighlight = { quotation: lastSearchQuery, start: -1, end: -1, x0: 0, y0: 0, x1: 0, y1: 0 };
   let view = await window.zhiliu.library.open(hit.sourceId);
   if (hit.spineIndex !== undefined && view.spineIndex !== hit.spineIndex) {
     view = await window.zhiliu.library.jump(hit.spineIndex);
@@ -780,6 +812,19 @@ function showReading(view: ReadingView): void {
   lastSelection = null;
   currentSourceId = view.sourceId;
   currentSpineIndex = view.spineIndex;
+  currentKind = view.kind;
+  currentHasTextLayer = view.hasTextLayer;
+  const prevLabel = view.kind === 'pdf' ? '上一页' : '上一章';
+  const nextLabel = view.kind === 'pdf' ? '下一页' : '下一章';
+  prev.textContent = prevLabel;
+  next.textContent = nextLabel;
+  prev.title = view.kind === 'pdf' ? '上一页（←）' : '上一章（←）';
+  next.title = view.kind === 'pdf' ? '下一页（→）' : '下一章（→）';
+  const notice = document.getElementById('reader-text-layer-notice');
+  if (notice) {
+    notice.hidden = view.hasTextLayer;
+    notice.textContent = view.hasTextLayer ? '' : '这份来源没有文本层，本版本无法选中文字。';
+  }
   const highlight = pendingHighlight;
   frame.onload = () => {
     bindFrameKeys(frame);

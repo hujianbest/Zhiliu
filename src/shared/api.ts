@@ -66,7 +66,7 @@ export type SaveModelSettingsInput = {
 
 export type IndexStatus = 'pending' | 'indexing' | 'ready' | 'error';
 
-export type SourceKind = 'epub';
+export type SourceKind = 'epub' | 'pdf';
 
 export type ReadingStatus = 'unread' | 'reading' | 'read';
 
@@ -99,6 +99,7 @@ export type TocEntry = {
 
 export type ReadingView = {
   sourceId: string;
+  kind: SourceKind;
   title: string;
   chapterLabel: string;
   html: string;
@@ -107,9 +108,10 @@ export type ReadingView = {
   toc: TocEntry[];
   status: ReadingStatus;
   spineIndex: number;
+  hasTextLayer: boolean;
 };
 
-export type SearchKind = 'epub' | 'note' | 'article' | 'draft';
+export type SearchKind = 'epub' | 'pdf' | 'note' | 'article' | 'draft';
 
 export type SearchHit = {
   kind: SearchKind;

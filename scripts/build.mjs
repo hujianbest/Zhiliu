@@ -19,7 +19,7 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron', 'keytar', 'onnxruntime-node', 'better-sqlite3'],
+    external: ['electron', 'keytar', 'onnxruntime-node', 'better-sqlite3', 'pdfjs-dist', 'pdfjs-dist/legacy/build/pdf.mjs'],
     logLevel: 'info',
   }),
   esbuild.build({
@@ -41,7 +41,7 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron', 'keytar', 'onnxruntime-node', 'better-sqlite3'],
+    external: ['electron', 'keytar', 'onnxruntime-node', 'better-sqlite3', 'pdfjs-dist', 'pdfjs-dist/legacy/build/pdf.mjs'],
     logLevel: 'info',
   }),
   esbuild.build({

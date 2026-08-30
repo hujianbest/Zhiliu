@@ -11,7 +11,7 @@ test.describe.configure({ mode: 'serial' });
 test('打开目录可以跳到对应章节，快捷键 T 可开合目录', async () => {
   const session = await launchZhiliu({ chooseFiles: [twoChapters] });
   try {
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await session.window.getByRole('button', { name: '双章试读' }).click();
     const body = session.window.frameLocator('iframe[title="正文"]');
     await expect(body.getByText('第一章独有句：北窗的灯还亮着。')).toBeVisible();
@@ -60,7 +60,7 @@ test('关闭应用后重新打开会回到上次阅读的章节', async () => {
   const vaultPath = first.vaultPath as string;
   const userDataPath = first.userDataPath;
   try {
-    await first.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await first.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await first.window.getByRole('button', { name: '双章试读' }).click();
     await first.window.getByRole('button', { name: '下一章' }).click();
     const body = first.window.frameLocator('iframe[title="正文"]');
@@ -89,7 +89,7 @@ test('返回书库后再启动停在书库，重新打开仍落在上次章节',
   const vaultPath = first.vaultPath as string;
   const userDataPath = first.userDataPath;
   try {
-    await first.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await first.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await first.window.getByRole('button', { name: '双章试读' }).click();
     await first.window.getByRole('button', { name: '下一章' }).click();
     const body = first.window.frameLocator('iframe[title="正文"]');
@@ -121,7 +121,7 @@ test('阅读状态只随本地阅读或显式标记变化，Shift+R 可切换已
   const vaultPath = first.vaultPath as string;
   const userDataPath = first.userDataPath;
   try {
-    await first.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await first.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     const item = first.window.getByRole('listitem').filter({ hasText: '双章试读' });
     await expect(item.getByText('未读')).toBeVisible();
 
@@ -165,7 +165,7 @@ test('阅读状态只随本地阅读或显式标记变化，Shift+R 可切换已
 test('读到末章会变为已读，撤销后回到在读', async () => {
   const session = await launchZhiliu({ chooseFiles: [twoChapters] });
   try {
-    await session.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await session.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     await session.window.getByRole('button', { name: '双章试读' }).click();
     await expect(session.window.locator('#library-reader').getByText('在读', { exact: true })).toBeVisible();
 
@@ -197,7 +197,7 @@ test('模型对来源的分析或摘要不会把书标为已读', async () => {
   const userDataPath = first.userDataPath;
   let sourceId = '';
   try {
-    await first.window.getByRole('button', { name: '导入 EPUB' }).click();
+    await first.window.getByRole('button', { name: '导入 EPUB 或 PDF' }).click();
     const item = first.window.getByRole('listitem').filter({ hasText: '双章试读' });
     await expect(item.getByText('未读')).toBeVisible();
 

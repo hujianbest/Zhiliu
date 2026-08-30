@@ -120,9 +120,13 @@ ipcMain.handle('library:import', async () => {
     return result;
   }
   const picked = await dialog.showOpenDialog({
-    title: '导入 EPUB',
+    title: '导入 EPUB 或 PDF',
     properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'EPUB', extensions: ['epub'] }],
+    filters: [
+      { name: 'EPUB 与 PDF', extensions: ['epub', 'pdf'] },
+      { name: 'EPUB', extensions: ['epub'] },
+      { name: 'PDF', extensions: ['pdf'] },
+    ],
   });
   if (picked.canceled || picked.filePaths.length === 0) {
     return { sources: await library.list(), failures: [] };
