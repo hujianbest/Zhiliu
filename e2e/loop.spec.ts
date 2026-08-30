@@ -373,7 +373,7 @@ test('完整闭环：三份合计超过 1MB 的来源走到干净导出', async 
       })
       .toBeGreaterThan(0);
     await session.window.getByRole('list', { name: '稿件' }).getByRole('button').filter({ hasText: '正式' }).first().click();
-    await expect(session.window.getByLabel('来源归属').getByText('用户', { exact: true })).toBeVisible();
+    await expect(session.window.getByLabel('来源归属').getByText('用户', { exact: true }).first()).toBeVisible();
     await session.window.getByRole('button', { name: '定稿', exact: true }).click();
     await session.window.getByRole('button', { name: '导出 Markdown' }).click();
     await expect(session.window.getByText('## 来源')).toBeVisible();
