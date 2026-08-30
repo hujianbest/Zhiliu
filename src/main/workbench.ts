@@ -173,6 +173,11 @@ export class Workbench {
     return this.view();
   }
 
+  async shouldRunOnNewNotes(): Promise<boolean> {
+    const state = await this.read();
+    return state.triggers.enabled && state.triggers.onNewNotes;
+  }
+
   captureCrash(payload: Record<string, unknown>): { outbound: Record<string, unknown> | null } {
     return { outbound: null };
   }

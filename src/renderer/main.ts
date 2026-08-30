@@ -1964,11 +1964,22 @@ document.getElementById('manuscript-list')?.addEventListener('click', (event) =>
     const spans = document.getElementById('draft-spans');
     if (spans) {
       spans.replaceChildren();
+      spans.hidden = draft.spans.length === 0 && draft.staleRefs.length === 0;
+      if (draft.spans.length > 0) {
+        spans.setAttribute('aria-label', '来源归属');
+      } else {
+        spans.removeAttribute('aria-label');
+      }
       for (const span of draft.spans) {
         const mark = document.createElement('span');
         mark.textContent = span.provenance === 'user' ? '用户' : span.provenance === 'ai' ? 'AI' : '来源';
         mark.dataset.provenance = span.provenance;
         spans.append(mark, document.createTextNode(span.text), document.createElement('br'));
+      }
+      if (draft.staleRefs.length > 0) {
+        const stale = document.createElement('p');
+        stale.textContent = '证据已失效';
+        spans.append(stale);
       }
     }
   });

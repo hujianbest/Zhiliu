@@ -108,10 +108,11 @@ ipcMain.handle('vault:choose', async () => {
 
 ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => {
   const note = await vault.saveNote(input);
-  await search.indexNote(note);
+  if (!note.path.endsWith('.conflict.md')) {
+    await search.indexNote(note);
+  }
   await commitForNote(input, note.kind);
-  const view = await workbench.view();
-  if (view.triggers.enabled && view.triggers.onNewNotes) {
+  if (await workbench.shouldRunOnNewNotes()) {
     void workbench.runBackground();
   }
   return note;
