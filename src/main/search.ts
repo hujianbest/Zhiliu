@@ -8,6 +8,7 @@ import { KeywordIndex, type KeywordDoc } from './keyword-index';
 import type { Library } from './library';
 import { extractPdfReading } from './pdf';
 import type { Vault } from './vault';
+import type { Workbench } from './workbench';
 
 const SEMANTIC_THRESHOLD = 0.5;
 
@@ -95,11 +96,17 @@ export class SearchIndex {
   private readonly vectors = new Map<string, VectorDoc>();
   private degraded: SearchQueryResult['degraded'] = null;
 
+  private workbench: Workbench | null = null;
+
   constructor(
     private readonly vault: Vault,
     private readonly library: Library,
     private readonly embeddings: EmbeddingAdapter,
   ) {}
+
+  attachWorkbench(workbench: Workbench): void {
+    this.workbench = workbench;
+  }
 
   embedCalls(): EmbedCall[] {
     return this.embeddings.embedCalls();
@@ -310,6 +317,37 @@ export class SearchIndex {
         });
       } catch {
         // Skip sources that cannot be extracted for search.
+      }
+    }
+
+    if (this.workbench) {
+      for (const draft of await this.workbench.retrievableManuscripts()) {
+        docs.push({
+          id: `draft:${draft.id}`,
+          kind: 'draft',
+          title: draft.title || '稿件',
+          text: draft.body,
+          sourceId: draft.id,
+          noteId: '',
+          sourcePosition: '',
+          spineIndex: 0,
+          partialIndex: false,
+          provenance: 'user',
+        });
+      }
+      for (const revision of await this.workbench.listRevisions()) {
+        docs.push({
+          id: `revision:${revision.id}`,
+          kind: 'note',
+          title: '并列修订',
+          text: revision.text,
+          sourceId: '',
+          noteId: revision.noteId,
+          sourcePosition: '',
+          spineIndex: 0,
+          partialIndex: false,
+          provenance: 'ai',
+        });
       }
     }
 

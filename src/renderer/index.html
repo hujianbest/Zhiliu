@@ -94,6 +94,48 @@
         <section data-space-panel="creation" hidden>
           <h1>创作</h1>
           <p class="lede">稿件在这里写成，来源归属会一直看得见。</p>
+          <p id="creation-empty">还没有稿件。可以手工新建，也可以从提案生成正式稿。</p>
+          <button type="button" id="new-manuscript">新建正式稿</button>
+          <ul id="manuscript-list" aria-label="稿件"></ul>
+          <label>
+            标题
+            <input id="draft-title" aria-label="稿件标题" />
+          </label>
+          <label>
+            正文
+            <textarea id="draft-body" aria-label="稿件正文" rows="8"></textarea>
+          </label>
+          <p id="draft-preview" aria-label="预览"></p>
+          <p id="draft-spans" aria-label="来源归属"></p>
+          <div class="settings-actions">
+            <button type="button" id="draft-save">保存稿件</button>
+            <button type="button" id="draft-finalize">定稿</button>
+            <button type="button" id="draft-unfinalize">撤回定稿</button>
+            <button type="button" id="draft-export">导出 Markdown</button>
+            <button type="button" id="draft-export-plain">复制纯文本</button>
+          </div>
+          <label class="search-semantic">
+            <input id="export-footnotes" type="checkbox" checked />
+            脚注与来源清单
+          </label>
+          <p id="export-output" hidden></p>
+          <h2>主题</h2>
+          <button type="button" id="organize-topics">组织主题</button>
+          <ul id="topic-list" aria-label="主题"></ul>
+          <h2>建议收件箱</h2>
+          <h3>你的思想线索</h3>
+          <ul id="inbox-signal" aria-label="你的思想线索"></ul>
+          <h3>从书库发现</h3>
+          <ul id="inbox-discovery" aria-label="从书库发现"></ul>
+          <h2>提案</h2>
+          <ul id="proposal-list" aria-label="提案"></ul>
+          <h2>风格档案</h2>
+          <textarea id="style-text" aria-label="风格档案" rows="4"></textarea>
+          <div class="settings-actions">
+            <button type="button" id="style-save">保存风格</button>
+            <button type="button" id="style-rollback">回滚风格</button>
+            <button type="button" id="style-reset">重置风格</button>
+          </div>
         </section>
       </main>
 
@@ -103,8 +145,17 @@
         <p id="agent-unconfigured" hidden>尚未配置模型。</p>
         <button type="button" id="agent-open-settings" hidden>打开设置</button>
         <button type="button" id="agent-analyze">开始分析</button>
+        <button type="button" id="agent-organize">组织主题</button>
         <p id="agent-status" role="status"></p>
         <p id="agent-result"></p>
+        <p id="agent-usage" role="status"></p>
+        <p id="agent-paused" hidden>后台已暂停</p>
+        <label>
+          提问
+          <textarea id="agent-question" aria-label="提问" rows="3"></textarea>
+        </label>
+        <button type="button" id="agent-ask">提问</button>
+        <ul id="agent-chat" aria-label="对话"></ul>
       </aside>
     </div>
 
@@ -147,6 +198,30 @@
           </label>
           <button type="button" data-probe="deep">测试连通性</button>
           <p class="probe-status" data-probe-result="deep" role="status"></p>
+        </fieldset>
+        <fieldset>
+          <legend>Agent 预算</legend>
+          <label>后台每日 Token <input name="budget-daily-tokens" type="number" aria-label="后台每日 Token" /></label>
+          <label>后台每月 Token <input name="budget-monthly-tokens" type="number" aria-label="后台每月 Token" /></label>
+          <label>后台每日请求数 <input name="budget-daily-requests" type="number" aria-label="后台每日请求数" /></label>
+          <label>后台每月请求数 <input name="budget-monthly-requests" type="number" aria-label="后台每月请求数" /></label>
+          <label class="search-semantic"><input name="budget-shared" type="checkbox" /> 共享硬上限</label>
+        </fieldset>
+        <fieldset>
+          <legend>提示词</legend>
+          <label>覆盖提示词 <textarea name="prompt-override" aria-label="覆盖提示词" rows="3"></textarea></label>
+          <button type="button" id="prompt-reset">恢复默认提示词</button>
+        </fieldset>
+        <fieldset>
+          <legend>隐私</legend>
+          <p>知识库是明文 Markdown。保密性依赖操作系统账户权限与磁盘加密，而不是专有格式。</p>
+          <label class="search-semantic"><input name="telemetry" type="checkbox" /> 开启匿名遥测</label>
+          <label class="search-semantic"><input name="crash-reports" type="checkbox" /> 开启匿名崩溃与性能报告</label>
+        </fieldset>
+        <fieldset>
+          <legend>自动工作</legend>
+          <label class="search-semantic"><input name="triggers-enabled" type="checkbox" /> 允许自动工作</label>
+          <label class="search-semantic"><input name="triggers-notes" type="checkbox" /> 新增笔记后自动分析</label>
         </fieldset>
         <div class="settings-actions">
           <button type="submit">保存</button>

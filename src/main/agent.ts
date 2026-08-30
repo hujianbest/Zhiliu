@@ -27,7 +27,7 @@ export class AgentRuntime {
     private readonly env: NodeJS.ProcessEnv = process.env,
   ) {}
 
-  async analyze(channel: 'interactive' | 'background' = 'interactive'): Promise<{ status: string; trace: GenerationTrace }> {
+  async analyze(channel: 'interactive' | 'background' = 'interactive', promptVersion = BUILTIN_PROMPT_VERSION): Promise<{ status: string; trace: GenerationTrace }> {
     const root = this.vault.path;
     if (!root) {
       throw new Error('还没有打开知识库');
@@ -43,13 +43,13 @@ export class AgentRuntime {
       quotation: note.quotation,
       thought: note.thought,
     }));
-    const result = await this.complete(endpoint.baseUrl, endpoint.model, endpoint.apiKey, payload);
+    const result = await this.complete(endpoint.baseUrl, endpoint.model, endpoint.apiKey, payload, promptVersion);
     const trace: GenerationTrace = {
       id: randomUUID(),
       taskType: 'analyze',
       channel,
       model: endpoint.model,
-      promptVersion: BUILTIN_PROMPT_VERSION,
+      promptVersion,
       sourceIds,
       timestamp: new Date().toISOString(),
       usage: {
@@ -111,6 +111,7 @@ export class AgentRuntime {
     model: string,
     apiKey: string,
     excerpts: { id: string; quotation: string; thought: string }[],
+    promptVersion: string,
   ): Promise<string> {
     const url = `${baseUrl.replace(/\/$/, '')}/chat/completions`;
     const response = await fetch(url, {
@@ -122,7 +123,7 @@ export class AgentRuntime {
       body: JSON.stringify({
         model,
         messages: [
-          { role: 'system', content: `zhiliu prompt ${BUILTIN_PROMPT_VERSION}` },
+          { role: 'system', content: `zhiliu prompt ${promptVersion}` },
           {
             role: 'user',
             content: `请根据这些摘录做一次分析，不要编造库外事实。\n${JSON.stringify(excerpts)}`,

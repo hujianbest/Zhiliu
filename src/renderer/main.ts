@@ -76,6 +76,9 @@ function showSpace(space: Space): void {
   if (space === 'thoughts') {
     void refreshThoughts();
   }
+  if (space === 'creation') {
+    void refreshWorkbench();
+  }
 }
 
 function rollbackDialog(): HTMLDialogElement {
@@ -139,8 +142,12 @@ function renderThoughtNotes(notes: AtomicNote[]): void {
     edit.type = 'button';
     edit.dataset.editNoteId = note.id;
     edit.textContent = '编辑';
+    const revise = document.createElement('button');
+    revise.type = 'button';
+    revise.dataset.reviseNote = note.id;
+    revise.textContent = '生成修订';
     button.append(kind, quote, thought);
-    item.append(button, edit);
+    item.append(button, edit, revise);
     list.append(item);
   }
 }
@@ -305,6 +312,21 @@ function fillSettings(view: ModelSettingsView): void {
   input('deep-model').value = view.deep.model;
   input('deep-api-key').value = '';
   input('deep-api-key').placeholder = view.deep.hasKey ? '已保存' : '';
+  void window.zhiliu.workbench.view().then((bench) => {
+    input('budget-daily-tokens').value = String(bench.budgets.dailyTokens);
+    input('budget-monthly-tokens').value = String(bench.budgets.monthlyTokens);
+    input('budget-daily-requests').value = String(bench.budgets.dailyRequests);
+    input('budget-monthly-requests').value = String(bench.budgets.monthlyRequests);
+    input('budget-shared').checked = bench.budgets.sharedHardCap;
+    const prompt = document.querySelector('#settings-form [name="prompt-override"]') as HTMLTextAreaElement;
+    if (prompt) {
+      prompt.value = bench.prompt.overridden ? bench.prompt.text : '';
+    }
+    input('telemetry').checked = bench.privacy.telemetry;
+    input('crash-reports').checked = bench.privacy.crashReports;
+    input('triggers-enabled').checked = bench.triggers.enabled;
+    input('triggers-notes').checked = bench.triggers.onNewNotes;
+  });
 }
 
 function renderLibrary(sources: SourceDocument[]): void {
@@ -1540,7 +1562,28 @@ document.getElementById('settings-form')?.addEventListener('submit', (event) => 
     .then((view) => {
       fillSettings(view);
       document.getElementById('settings-saved')!.textContent = '已保存';
-      return refreshAgent(view);
+      return Promise.all([
+        refreshAgent(view),
+        window.zhiliu.workbench.saveBudgets({
+          dailyTokens: Number(input('budget-daily-tokens').value) || 0,
+          monthlyTokens: Number(input('budget-monthly-tokens').value) || 0,
+          dailyRequests: Number(input('budget-daily-requests').value) || 0,
+          monthlyRequests: Number(input('budget-monthly-requests').value) || 0,
+          sharedHardCap: input('budget-shared').checked,
+        }),
+        window.zhiliu.workbench.savePrivacy({
+          telemetry: input('telemetry').checked,
+          crashReports: input('crash-reports').checked,
+        }),
+        window.zhiliu.workbench.saveTriggers({
+          enabled: input('triggers-enabled').checked,
+          onNewNotes: input('triggers-notes').checked,
+        }),
+        (() => {
+          const prompt = (document.querySelector('#settings-form [name="prompt-override"]') as HTMLTextAreaElement)?.value.trim();
+          return prompt ? window.zhiliu.workbench.savePrompt(prompt) : Promise.resolve();
+        })(),
+      ]);
     });
 });
 
@@ -1549,9 +1592,342 @@ void window.zhiliu.vault.current().then(async (status) => {
   if (!status.firstRun) {
     void refreshAgent();
     await refreshLibrary();
+    await refreshWorkbench();
     const view = await window.zhiliu.library.resume();
     if (view) {
       showReading(view);
     }
   }
 });
+
+let currentDraftId: string | null = null;
+
+async function refreshWorkbench(): Promise<void> {
+  const bench = await window.zhiliu.workbench.view();
+  const usage = document.getElementById('agent-usage');
+  if (usage) {
+    usage.textContent = `用量 交互式 ${bench.usage.interactive.requests} 次 / 后台 ${bench.usage.background.requests} 次${bench.usage.interactive.estimated ? '（估算）' : ''}`;
+  }
+  const paused = document.getElementById('agent-paused');
+  if (paused) {
+    paused.hidden = !bench.usage.paused;
+  }
+  renderManuscripts(bench.manuscripts);
+  renderTopics(bench.topics);
+  renderInbox(bench.inbox);
+  renderProposals(bench.proposals);
+  renderChats(bench.chats);
+  const style = document.getElementById('style-text') as HTMLTextAreaElement | null;
+  if (style && document.activeElement !== style) {
+    style.value = bench.style.text;
+  }
+}
+
+function renderManuscripts(items: { id: string; title: string; kind: string; status: string; body: string; spans: { text: string; provenance: string }[] }[]): void {
+  const list = document.getElementById('manuscript-list');
+  const empty = document.getElementById('creation-empty');
+  if (!list) {
+    return;
+  }
+  list.replaceChildren();
+  if (empty) {
+    empty.hidden = items.length > 0;
+  }
+  for (const item of items) {
+    const row = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.draftId = item.id;
+    button.textContent = `${item.title || '未命名'} · ${item.kind === 'trial' ? '试写' : '正式'} · ${item.status === 'final' ? '定稿' : '草稿'}`;
+    row.append(button);
+    list.append(row);
+  }
+}
+
+function renderTopics(items: { id: string; title: string; origin: string; pinned: boolean }[]): void {
+  const list = document.getElementById('topic-list');
+  if (!list) {
+    return;
+  }
+  list.replaceChildren();
+  for (const item of items) {
+    const row = document.createElement('li');
+    const label = document.createElement('p');
+    label.textContent = `${item.title} · ${item.origin === 'thought-signal' ? '思想线索' : '书库发现'}${item.pinned ? ' · 已固定' : ''}`;
+    const pin = document.createElement('button');
+    pin.type = 'button';
+    pin.textContent = item.pinned ? '取消固定' : '固定';
+    pin.dataset.pinTopic = item.id;
+    const hide = document.createElement('button');
+    hide.type = 'button';
+    hide.textContent = '隐藏';
+    hide.dataset.hideTopic = item.id;
+    const proposal = document.createElement('button');
+    proposal.type = 'button';
+    proposal.textContent = '生成提案';
+    proposal.dataset.proposalTopic = item.id;
+    row.append(label, pin, hide, proposal);
+    list.append(row);
+  }
+}
+
+function renderInbox(items: { id: string; origin: string; title: string; copy: string; state: string }[]): void {
+  const signal = document.getElementById('inbox-signal');
+  const discovery = document.getElementById('inbox-discovery');
+  if (!signal || !discovery) {
+    return;
+  }
+  signal.replaceChildren();
+  discovery.replaceChildren();
+  for (const item of items.filter((entry) => entry.state === 'pending')) {
+    const row = document.createElement('li');
+    const title = document.createElement('p');
+    title.textContent = item.title;
+    const copy = document.createElement('p');
+    copy.textContent = item.copy;
+    row.append(title, copy);
+    if (item.origin === 'thought-signal') {
+      signal.append(row);
+    } else {
+      discovery.append(row);
+    }
+  }
+}
+
+function renderProposals(items: { id: string; thesis: string; ready: boolean; evidence: { id: string; text: string; confirmed: boolean }[] }[]): void {
+  const list = document.getElementById('proposal-list');
+  if (!list) {
+    return;
+  }
+  list.replaceChildren();
+  for (const item of items) {
+    const row = document.createElement('li');
+    const thesis = document.createElement('p');
+    thesis.textContent = item.thesis;
+    row.append(thesis);
+    for (const evidence of item.evidence) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = evidence.confirmed ? `已确认：${evidence.text}` : `确认：${evidence.text}`;
+      button.dataset.confirmProposal = item.id;
+      button.dataset.confirmEvidence = evidence.id;
+      row.append(button);
+    }
+    const generate = document.createElement('button');
+    generate.type = 'button';
+    generate.textContent = '生成正式稿';
+    generate.dataset.generateProposal = item.id;
+    generate.disabled = !item.ready;
+    row.append(generate);
+    list.append(row);
+  }
+}
+
+function renderChats(items: { id: string; question: string; paragraphs: { text: string; provenance: string }[]; partialIndex: boolean }[]): void {
+  const list = document.getElementById('agent-chat');
+  if (!list) {
+    return;
+  }
+  list.replaceChildren();
+  for (const turn of items) {
+    const row = document.createElement('li');
+    const q = document.createElement('p');
+    q.textContent = turn.question;
+    row.append(q);
+    if (turn.partialIndex) {
+      const partial = document.createElement('p');
+      partial.textContent = '结果基于部分索引';
+      row.append(partial);
+    }
+    turn.paragraphs.forEach((paragraph, index) => {
+      const p = document.createElement('p');
+      p.textContent = `${paragraph.provenance === 'source' ? '有来源支撑' : paragraph.provenance === 'ai' ? '模型补充' : '用户'}：${paragraph.text}`;
+      const promote = document.createElement('button');
+      promote.type = 'button';
+      promote.textContent = '提炼为笔记';
+      promote.dataset.promoteTurn = turn.id;
+      promote.dataset.promoteIndex = String(index);
+      row.append(p, promote);
+    });
+    list.append(row);
+  }
+}
+
+document.getElementById('new-manuscript')?.addEventListener('click', () => {
+  void window.zhiliu.workbench
+    .createManuscript({ kind: 'formal', title: '未命名稿件', body: '' })
+    .then((draft) => {
+      currentDraftId = draft.id;
+      (document.getElementById('draft-title') as HTMLInputElement).value = draft.title;
+      (document.getElementById('draft-body') as HTMLTextAreaElement).value = draft.body;
+      return refreshWorkbench();
+    });
+});
+document.getElementById('draft-body')?.addEventListener('input', () => {
+  const preview = document.getElementById('draft-preview');
+  const body = (document.getElementById('draft-body') as HTMLTextAreaElement).value;
+  if (preview) {
+    preview.textContent = body;
+  }
+});
+document.getElementById('draft-save')?.addEventListener('click', () => {
+  if (!currentDraftId) {
+    return;
+  }
+  const title = (document.getElementById('draft-title') as HTMLInputElement).value;
+  const body = (document.getElementById('draft-body') as HTMLTextAreaElement).value;
+  void window.zhiliu.workbench.saveManuscript({ id: currentDraftId, title, body }).then(() => refreshWorkbench());
+});
+document.getElementById('draft-finalize')?.addEventListener('click', () => {
+  if (!currentDraftId) {
+    return;
+  }
+  void window.zhiliu.workbench.finalize(currentDraftId).then(() => refreshWorkbench());
+});
+document.getElementById('draft-unfinalize')?.addEventListener('click', () => {
+  if (!currentDraftId) {
+    return;
+  }
+  void window.zhiliu.workbench.unfinalize(currentDraftId).then(() => refreshWorkbench());
+});
+document.getElementById('draft-export')?.addEventListener('click', () => {
+  if (!currentDraftId) {
+    return;
+  }
+  const footnotes = (document.getElementById('export-footnotes') as HTMLInputElement).checked;
+  void window.zhiliu.workbench.exportManuscript(currentDraftId, { footnotes }).then((exported) => {
+    const out = document.getElementById('export-output');
+    if (out) {
+      out.hidden = false;
+      out.textContent = exported.markdown;
+    }
+  });
+});
+document.getElementById('organize-topics')?.addEventListener('click', () => {
+  void window.zhiliu.agent.organize().then(() => refreshWorkbench());
+});
+document.getElementById('agent-organize')?.addEventListener('click', () => {
+  void window.zhiliu.agent.organize().then(() => refreshWorkbench());
+});
+document.getElementById('agent-ask')?.addEventListener('click', () => {
+  const question = (document.getElementById('agent-question') as HTMLTextAreaElement).value.trim();
+  if (!question) {
+    return;
+  }
+  void window.zhiliu.agent.chat(question).then(() => refreshWorkbench());
+});
+document.getElementById('style-save')?.addEventListener('click', () => {
+  const text = (document.getElementById('style-text') as HTMLTextAreaElement).value;
+  void window.zhiliu.workbench.saveStyle(text).then(() => refreshWorkbench());
+});
+document.getElementById('style-rollback')?.addEventListener('click', () => {
+  void window.zhiliu.workbench.rollbackStyle().then(() => refreshWorkbench());
+});
+document.getElementById('style-reset')?.addEventListener('click', () => {
+  void window.zhiliu.workbench.resetStyle().then(() => refreshWorkbench());
+});
+document.getElementById('prompt-reset')?.addEventListener('click', () => {
+  void window.zhiliu.workbench.resetPrompt().then(() => {
+    const prompt = document.querySelector('#settings-form [name="prompt-override"]') as HTMLTextAreaElement;
+    if (prompt) {
+      prompt.value = '';
+    }
+  });
+});
+document.getElementById('manuscript-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const id = target.closest<HTMLButtonElement>('[data-draft-id]')?.dataset.draftId;
+  if (!id) {
+    return;
+  }
+  void window.zhiliu.workbench.view().then((bench) => {
+    const draft = bench.manuscripts.find((item) => item.id === id);
+    if (!draft) {
+      return;
+    }
+    currentDraftId = draft.id;
+    (document.getElementById('draft-title') as HTMLInputElement).value = draft.title;
+    (document.getElementById('draft-body') as HTMLTextAreaElement).value = draft.body;
+    const preview = document.getElementById('draft-preview');
+    if (preview) {
+      preview.textContent = draft.body;
+    }
+    const spans = document.getElementById('draft-spans');
+    if (spans) {
+      spans.replaceChildren();
+      for (const span of draft.spans) {
+        const mark = document.createElement('span');
+        mark.textContent = span.provenance === 'user' ? '用户' : span.provenance === 'ai' ? 'AI' : '来源';
+        mark.dataset.provenance = span.provenance;
+        spans.append(mark, document.createTextNode(span.text), document.createElement('br'));
+      }
+    }
+  });
+});
+document.getElementById('topic-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const pin = target.closest<HTMLButtonElement>('[data-pin-topic]')?.dataset.pinTopic;
+  if (pin) {
+    void window.zhiliu.workbench.view().then((bench) => {
+      const topic = bench.topics.find((item) => item.id === pin);
+      return window.zhiliu.workbench.pinTopic(pin, !topic?.pinned);
+    }).then(() => refreshWorkbench());
+    return;
+  }
+  const hide = target.closest<HTMLButtonElement>('[data-hide-topic]')?.dataset.hideTopic;
+  if (hide) {
+    void window.zhiliu.workbench.hideTopic(hide, true).then(() => refreshWorkbench());
+    return;
+  }
+  const topicId = target.closest<HTMLButtonElement>('[data-proposal-topic]')?.dataset.proposalTopic;
+  if (topicId) {
+    void window.zhiliu.workbench.createProposal(topicId).then(() => refreshWorkbench());
+  }
+});
+document.getElementById('proposal-list')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const generate = target.closest<HTMLButtonElement>('[data-generate-proposal]')?.dataset.generateProposal;
+  if (generate) {
+    void window.zhiliu.workbench.generateFormal(generate).then((draft) => {
+      currentDraftId = draft.id;
+      return refreshWorkbench();
+    });
+    return;
+  }
+  const proposalId = target.closest<HTMLButtonElement>('[data-confirm-proposal]')?.dataset.confirmProposal;
+  const evidenceId = target.closest<HTMLButtonElement>('[data-confirm-evidence]')?.dataset.confirmEvidence;
+  if (proposalId && evidenceId) {
+    void window.zhiliu.workbench.confirmEvidence(proposalId, evidenceId).then(() => refreshWorkbench());
+  }
+});
+document.getElementById('agent-chat')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const turnId = target.closest<HTMLButtonElement>('[data-promote-turn]')?.dataset.promoteTurn;
+  const index = target.closest<HTMLButtonElement>('[data-promote-index]')?.dataset.promoteIndex;
+  if (turnId && index !== undefined) {
+    void window.zhiliu.workbench.promoteChat(turnId, Number(index), '从对话里留下的想法。').then(() => refreshWorkbench());
+  }
+});
+document.getElementById('thoughts-notes')?.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  const revise = target.closest<HTMLButtonElement>('[data-revise-note]')?.dataset.reviseNote;
+  if (revise) {
+    void window.zhiliu.agent.revise(revise).then(() => refreshThoughts());
+  }
+});
+

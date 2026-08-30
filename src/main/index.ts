@@ -14,6 +14,7 @@ import { SearchIndex } from './search';
 import { UtilityWorkerHost } from './utility-host';
 import { Vault } from './vault';
 import { VaultWatcher } from './watcher';
+import { Workbench } from './workbench';
 
 if (process.env.ZHILIU_USER_DATA) {
   app.setPath('userData', process.env.ZHILIU_USER_DATA);
@@ -38,6 +39,8 @@ const models = new ModelSettings(preferences, createCredentialStore(app.getPath(
 const markdown = new MarkdownImporter(vault);
 const agent = new AgentRuntime(vault, models, search, process.env);
 const watcher = new VaultWatcher(vault, search);
+const workbench = new Workbench(vault, search, agent, library);
+search.attachWorkbench(workbench);
 let mainWindow: BrowserWindow | null = null;
 (globalThis as { __zhiliuPingWorker?: () => Promise<boolean> }).__zhiliuPingWorker = () => {
   if (!utilityWorker) {
@@ -107,6 +110,10 @@ ipcMain.handle('notes:save', async (_event, input: SaveNoteInput) => {
   const note = await vault.saveNote(input);
   await search.indexNote(note);
   await commitForNote(input, note.kind);
+  const view = await workbench.view();
+  if (view.triggers.enabled && view.triggers.onNewNotes) {
+    void workbench.runBackground();
+  }
   return note;
 });
 ipcMain.handle('notes:get', async (_event, id: string) => vault.getNote(id));
@@ -215,12 +222,103 @@ ipcMain.handle('library:importMarkdown', async () => {
   return report;
 });
 
-ipcMain.handle('agent:analyze', async () => {
-  const outcome = await agent.analyze();
+ipcMain.handle('agent:analyze', async (_event, channel?: 'interactive' | 'background') => {
+  const used = channel === 'background' ? 'background' : 'interactive';
+  if (!(await workbench.allow(used))) {
+    throw new Error(used === 'background' ? '后台已暂停' : '已达到共享上限');
+  }
+  const view = await workbench.view();
+  const outcome = await agent.analyze(used, view.prompt.version);
+  await workbench.record(outcome.trace);
   await git.commit('分析知识库');
   return outcome;
 });
 ipcMain.handle('agent:latestTrace', async () => agent.latestTrace());
+ipcMain.handle('agent:organize', async () => {
+  const topics = await workbench.cluster();
+  await git.commit('组织主题');
+  return topics;
+});
+ipcMain.handle('agent:chat', async (_event, question: string) => workbench.chat(typeof question === 'string' ? question : ''));
+ipcMain.handle('agent:revise', async (_event, noteId: string) => {
+  const revision = await workbench.revise(typeof noteId === 'string' ? noteId : '');
+  await search.rebuild();
+  await git.commit('分析知识库');
+  return revision;
+});
+ipcMain.handle('agent:acceptRevision', async (_event, id: string) => {
+  await workbench.acceptRevision(typeof id === 'string' ? id : '');
+  await search.rebuild();
+  await git.commit('更新一条笔记');
+});
+ipcMain.handle('agent:rejectRevision', async (_event, id: string) => {
+  await workbench.rejectRevision(typeof id === 'string' ? id : '');
+  await search.rebuild();
+});
+ipcMain.handle('agent:runBackground', async () => workbench.runBackground());
+
+ipcMain.handle('workbench:view', async () => workbench.view());
+ipcMain.handle('workbench:saveBudgets', async (_event, input) => workbench.saveBudgets(input));
+ipcMain.handle('workbench:savePrivacy', async (_event, input) => workbench.savePrivacy(input));
+ipcMain.handle('workbench:savePrompt', async (_event, text: string) => workbench.savePrompt(typeof text === 'string' ? text : ''));
+ipcMain.handle('workbench:resetPrompt', async () => workbench.resetPrompt());
+ipcMain.handle('workbench:saveTriggers', async (_event, input) => workbench.saveTriggers(input));
+ipcMain.handle('workbench:captureCrash', async (_event, payload) => workbench.crashReport(payload ?? {}));
+ipcMain.handle('workbench:renameTopic', async (_event, id: string, title: string) => workbench.renameTopic(id, title));
+ipcMain.handle('workbench:pinTopic', async (_event, id: string, pinned: boolean) => workbench.pinTopic(id, pinned));
+ipcMain.handle('workbench:hideTopic', async (_event, id: string, hidden: boolean) => workbench.hideTopic(id, hidden));
+ipcMain.handle('workbench:mergeTopics', async (_event, fromId: string, intoId: string) => workbench.mergeTopics(fromId, intoId));
+ipcMain.handle('workbench:splitTopic', async (_event, id: string, noteIds: string[]) => workbench.splitTopic(id, noteIds));
+ipcMain.handle('workbench:createProposal', async (_event, topicId: string) => workbench.createProposal(topicId));
+ipcMain.handle('workbench:confirmEvidence', async (_event, proposalId: string, evidenceId: string) =>
+  workbench.confirmEvidence(proposalId, evidenceId),
+);
+ipcMain.handle('workbench:setThesis', async (_event, proposalId: string, thesis: string) => workbench.setThesis(proposalId, thesis));
+ipcMain.handle('workbench:includeEvidence', async (_event, proposalId: string, evidenceId: string, included: boolean) =>
+  workbench.includeEvidence(proposalId, evidenceId, included),
+);
+ipcMain.handle('workbench:createManuscript', async (_event, input) => {
+  const draft = await workbench.createManuscript(input);
+  await git.commit('更新一条笔记');
+  return draft;
+});
+ipcMain.handle('workbench:saveManuscript', async (_event, input) => {
+  const draft = await workbench.saveManuscript(input);
+  await git.commit('更新一条笔记');
+  await search.rebuild();
+  return draft;
+});
+ipcMain.handle('workbench:finalize', async (_event, id: string) => {
+  const draft = await workbench.finalize(id);
+  await git.commit('更新一条笔记');
+  await search.rebuild();
+  return draft;
+});
+ipcMain.handle('workbench:unfinalize', async (_event, id: string) => {
+  const draft = await workbench.unfinalize(id);
+  await git.commit('更新一条笔记');
+  await search.rebuild();
+  return draft;
+});
+ipcMain.handle('workbench:generateFormal', async (_event, proposalId: string) => {
+  const draft = await workbench.generateFormal(proposalId);
+  await git.commit('更新一条笔记');
+  return draft;
+});
+ipcMain.handle('workbench:promoteTrial', async (_event, id: string) => workbench.promoteTrial(id));
+ipcMain.handle('workbench:exportManuscript', async (_event, id: string, options) => workbench.exportManuscript(id, options));
+ipcMain.handle('workbench:promoteChat', async (_event, turnId: string, paragraphIndex: number, thought: string) => {
+  const note = await workbench.promoteChat(turnId, paragraphIndex, thought);
+  await search.indexNote(note);
+  await git.commit('记下一条思想笔记');
+  return note;
+});
+ipcMain.handle('workbench:saveStyle', async (_event, text: string) => workbench.saveStyle(text));
+ipcMain.handle('workbench:resetStyle', async () => workbench.resetStyle());
+ipcMain.handle('workbench:rollbackStyle', async () => workbench.rollbackStyle());
+ipcMain.handle('workbench:learnStyle', async (_event, manuscriptId: string) => workbench.learnStyle(manuscriptId));
+ipcMain.handle('workbench:confirmStyleProposal', async (_event, id: string) => workbench.confirmStyleProposal(id));
+ipcMain.handle('workbench:inboxAct', async (_event, id: string, action: 'accept' | 'ignore') => workbench.inboxAct(id, action));
 
 app.whenReady().then(async () => {
   utilityWorker = new UtilityWorkerHost();

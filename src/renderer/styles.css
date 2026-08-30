@@ -503,7 +503,40 @@ dialog button:focus-visible,
   outline-offset: 2px;
 }
 
-#agent-analyze {
+#new-manuscript,
+#draft-save,
+#draft-finalize,
+#draft-unfinalize,
+#draft-export,
+#draft-export-plain,
+#organize-topics,
+#agent-organize,
+#agent-ask,
+#style-save,
+#style-rollback,
+#style-reset,
+#prompt-reset {
+  appearance: none;
+  min-height: 44px;
+  margin: 0 var(--space-2) var(--space-4) 0;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-raised);
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+[data-provenance='user'] {
+  color: var(--color-focus);
+}
+[data-provenance='source'] {
+  color: var(--color-accent);
+}
+[data-provenance='ai'] {
+  color: var(--color-ink-muted);
+}
   appearance: none;
   min-height: 44px;
   margin: 0 0 var(--space-4);
