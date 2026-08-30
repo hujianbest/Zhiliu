@@ -313,7 +313,8 @@ export class Workbench {
     const grounded = hits.hits.filter((hit) => hit.provenance !== 'user').slice(0, 3);
     const view = await this.view();
     const asked = `请根据这些摘录做一次分析，回答用户的问题：${question}\n${JSON.stringify(grounded.map((hit) => hit.snippet))}`;
-    const { text, trace } = await this.agent.completeTask('chat', 'interactive', view.prompt.version, asked);
+    const sourceIds = [...new Set(grounded.map((hit) => hit.sourceId).filter((id): id is string => Boolean(id)))];
+    const { text, trace } = await this.agent.completeTask('chat', 'interactive', view.prompt.version, asked, sourceIds);
     await this.record(trace);
     const paragraphs = [
       ...grounded.map((hit) => ({
@@ -368,11 +369,16 @@ export class Workbench {
     if (!note) {
       throw new Error('找不到这条笔记');
     }
+    const view = await this.view();
+    const prompt = `请根据这些摘录做一次分析，改写成并列修订，不要覆盖用户原文：${JSON.stringify({ quotation: note.quotation, thought: note.thought })}`;
+    const sourceIds = note.sourceId ? [note.sourceId] : [];
+    const { text, trace } = await this.agent.completeTask('revise', 'interactive', view.prompt.version, prompt, sourceIds);
+    await this.record(trace);
     const revision: ParallelRevision = {
       id: randomUUID(),
       noteId,
       path: note.path.replace(/\.md$/, '.revision.md'),
-      text: `${note.thought}（AI 并列修订）`,
+      text,
       provenance: 'ai',
     };
     await this.writeRevisionFile(revision);
@@ -527,7 +533,9 @@ export class Workbench {
     if (!current || current.kind !== 'formal') {
       throw new Error('只有正式稿可以定稿');
     }
-    return this.writeManuscript({ ...current, status: 'final' });
+    const view = await this.writeManuscript({ ...current, status: 'final' });
+    await this.learnStyle(view.id);
+    return view;
   }
 
   async unfinalize(id: string): Promise<ManuscriptView> {
@@ -561,7 +569,8 @@ export class Workbench {
       spans.push({ text: `风格档案（可见影响）：${state.style.text.trim()}`, provenance: 'ai' });
     }
     const prompt = `请根据这些摘录做一次分析，写成正式稿。论点：${proposal.thesis}。风格：${state.style.text}。证据：${included.map((item) => item.text).join(' / ')}`;
-    const { text, trace } = await this.agent.completeTask('write', 'interactive', this.promptVersion(state), prompt);
+    const sourceIds = [...new Set(included.map((item) => notes.find((note) => note.id === item.noteId)?.sourceId).filter((id): id is string => Boolean(id)))];
+    const { text, trace } = await this.agent.completeTask('write', 'interactive', this.promptVersion(state), prompt, sourceIds);
     await this.record(trace);
     spans.push({ text, provenance: 'ai' });
     const body = spans.map((span) => span.text).join('\n\n');
@@ -866,7 +875,7 @@ ${revision.text}
   }
 
   private withReady(proposal: ProposalView): ProposalView {
-    const thoughts = proposal.evidence.filter((item) => item.kind === 'thought' && item.included);
+    const thoughts = proposal.evidence.filter((item) => item.kind === 'thought' && item.included && item.confirmed);
     proposal.ready = Boolean(proposal.thesisConfirmed) && thoughts.length >= 3;
     return proposal;
   }
@@ -978,13 +987,13 @@ ${revision.text}
     if (state.usageDay !== dayKey()) {
       state.usage.background = { tokens: 0, requests: 0, estimated: true };
       state.usage.interactive = { tokens: 0, requests: 0, estimated: true };
-      state.usage.paused = false;
       state.usageDay = dayKey();
     }
     if (state.usageMonth !== monthKey()) {
       state.usageMonthly = { interactive: { tokens: 0, requests: 0 }, background: { tokens: 0, requests: 0 } };
       state.usageMonth = monthKey();
     }
+    this.recomputePause(state);
   }
 
   private file(): string {

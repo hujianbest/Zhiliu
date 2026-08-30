@@ -126,12 +126,12 @@ ipcMain.handle('notes:conflicts', async () => vault.listConflicts());
 ipcMain.handle('notes:resolveConflict', async (_event, filePath: string, keep: 'disk' | 'incoming') => {
   await vault.resolveConflict(typeof filePath === 'string' ? filePath : '', keep === 'incoming' ? 'incoming' : 'disk');
   await search.rebuild();
-  await git.commit('更新一条笔记');
+  await git.commit('解决冲突副本');
 });
 ipcMain.handle('notes:repair', async (_event, filePath: string, id: string) => {
   await vault.repairNote(filePath, id);
   await search.rebuild();
-  await git.commit('更新一条笔记');
+  await git.commit('修复笔记');
 });
 ipcMain.handle('notes:listForSource', async (_event, sourceId: string) => vault.listNotesForSource(sourceId));
 ipcMain.handle('history:list', async () => git.history());
@@ -242,11 +242,15 @@ ipcMain.handle('agent:organize', async () => {
   await git.commit('组织主题');
   return topics;
 });
-ipcMain.handle('agent:chat', async (_event, question: string) => workbench.chat(typeof question === 'string' ? question : ''));
+ipcMain.handle('agent:chat', async (_event, question: string) => {
+  const turn = await workbench.chat(typeof question === 'string' ? question : '');
+  await git.commit('知识库对话');
+  return turn;
+});
 ipcMain.handle('agent:revise', async (_event, noteId: string) => {
   const revision = await workbench.revise(typeof noteId === 'string' ? noteId : '');
   await search.rebuild();
-  await git.commit('分析知识库');
+  await git.commit('生成并列修订');
   return revision;
 });
 ipcMain.handle('agent:acceptRevision', async (_event, id: string) => {
@@ -302,8 +306,16 @@ ipcMain.handle('workbench:renameTopic', async (_event, id: string, title: string
   await git.commit('重命名主题');
   return topic;
 });
-ipcMain.handle('workbench:pinTopic', async (_event, id: string, pinned: boolean) => workbench.pinTopic(id, pinned));
-ipcMain.handle('workbench:hideTopic', async (_event, id: string, hidden: boolean) => workbench.hideTopic(id, hidden));
+ipcMain.handle('workbench:pinTopic', async (_event, id: string, pinned: boolean) => {
+  const topic = await workbench.pinTopic(id, pinned);
+  await git.commit(pinned ? '固定主题' : '取消固定主题');
+  return topic;
+});
+ipcMain.handle('workbench:hideTopic', async (_event, id: string, hidden: boolean) => {
+  const topic = await workbench.hideTopic(id, hidden);
+  await git.commit(hidden ? '隐藏主题' : '取消隐藏主题');
+  return topic;
+});
 ipcMain.handle('workbench:mergeTopics', async (_event, fromId: string, intoId: string) => {
   const topics = await workbench.mergeTopics(fromId, intoId);
   await git.commit('合并主题');
@@ -362,7 +374,11 @@ ipcMain.handle('workbench:generateFormal', async (_event, proposalId: string) =>
   await git.commit('生成正式稿');
   return draft;
 });
-ipcMain.handle('workbench:promoteTrial', async (_event, id: string) => workbench.promoteTrial(id));
+ipcMain.handle('workbench:promoteTrial', async (_event, id: string) => {
+  const proposal = await workbench.promoteTrial(id);
+  await git.commit('从试写预填提案');
+  return proposal;
+});
 ipcMain.handle('workbench:exportManuscript', async (_event, id: string, options) => workbench.exportManuscript(id, options));
 ipcMain.handle('workbench:promoteChat', async (_event, turnId: string, paragraphIndex: number, thought: string) => {
   const note = await workbench.promoteChat(turnId, paragraphIndex, thought);
@@ -370,12 +386,36 @@ ipcMain.handle('workbench:promoteChat', async (_event, turnId: string, paragraph
   await git.commit('记下一条思想笔记');
   return note;
 });
-ipcMain.handle('workbench:saveStyle', async (_event, text: string) => workbench.saveStyle(text));
-ipcMain.handle('workbench:resetStyle', async () => workbench.resetStyle());
-ipcMain.handle('workbench:rollbackStyle', async () => workbench.rollbackStyle());
-ipcMain.handle('workbench:learnStyle', async (_event, manuscriptId: string) => workbench.learnStyle(manuscriptId));
-ipcMain.handle('workbench:confirmStyleProposal', async (_event, id: string) => workbench.confirmStyleProposal(id));
-ipcMain.handle('workbench:inboxAct', async (_event, id: string, action: 'accept' | 'ignore') => workbench.inboxAct(id, action));
+ipcMain.handle('workbench:saveStyle', async (_event, text: string) => {
+  const style = await workbench.saveStyle(text);
+  await git.commit('保存风格档案');
+  return style;
+});
+ipcMain.handle('workbench:resetStyle', async () => {
+  const style = await workbench.resetStyle();
+  await git.commit('重置风格档案');
+  return style;
+});
+ipcMain.handle('workbench:rollbackStyle', async () => {
+  const style = await workbench.rollbackStyle();
+  await git.commit('回滚风格档案');
+  return style;
+});
+ipcMain.handle('workbench:learnStyle', async (_event, manuscriptId: string) => {
+  const proposal = await workbench.learnStyle(manuscriptId);
+  await git.commit('提出风格更新');
+  return proposal;
+});
+ipcMain.handle('workbench:confirmStyleProposal', async (_event, id: string) => {
+  const style = await workbench.confirmStyleProposal(id);
+  await git.commit('确认风格更新');
+  return style;
+});
+ipcMain.handle('workbench:inboxAct', async (_event, id: string, action: 'accept' | 'ignore') => {
+  const inbox = await workbench.inboxAct(id, action);
+  await git.commit(action === 'accept' ? '采纳收件箱建议' : '忽略收件箱建议');
+  return inbox;
+});
 
 app.whenReady().then(async () => {
   utilityWorker = new UtilityWorkerHost();

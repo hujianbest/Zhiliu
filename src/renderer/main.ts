@@ -1879,9 +1879,9 @@ function proposalReadyHint(item: ProposalView): string {
   if (!item.thesisConfirmed) {
     return '需要先确认或修改论点';
   }
-  const thoughts = item.evidence.filter((entry) => entry.kind === 'thought' && entry.included);
+  const thoughts = item.evidence.filter((entry) => entry.kind === 'thought' && entry.included && entry.confirmed);
   if (thoughts.length < 3) {
-    return '至少需要三条纳入的思想笔记';
+    return '至少需要三条已确认且纳入的思想笔记';
   }
   return '尚未写作就绪';
 }

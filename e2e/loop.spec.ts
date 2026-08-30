@@ -249,14 +249,12 @@ test('导出可关脚注且不含凭据；试写稿转正产生新正式稿；�
     const exported = await session.window.evaluate(async (id) => window.zhiliu.workbench.exportManuscript(id, { footnotes: false }), formal.id);
     expect(exported.markdown).not.toContain('## 来源');
     expect(exported.markdown).not.toContain('e2e-fake-key');
-    await session.window.evaluate(async (id) => window.zhiliu.workbench.finalize(id), formal.id);
     await session.window.evaluate(async (text) => window.zhiliu.workbench.saveStyle(text), '原风格。');
     const before = await session.window.evaluate(async () => window.zhiliu.workbench.view());
-    const learned = await session.window.evaluate(async (id) => window.zhiliu.workbench.learnStyle(id), formal.id);
-    expect(learned).toBeTruthy();
-    const unchanged = await session.window.evaluate(async () => window.zhiliu.workbench.view());
-    expect(unchanged.style.text).toBe(before.style.text);
-    expect(unchanged.styleProposals[0]?.evidence).toBeTruthy();
+    await session.window.evaluate(async (id) => window.zhiliu.workbench.finalize(id), formal.id);
+    const pending = await session.window.evaluate(async () => window.zhiliu.workbench.view());
+    expect(pending.style.text).toBe(before.style.text);
+    expect(pending.styleProposals[0]?.evidence).toBeTruthy();
     await session.window.getByRole('button', { name: '创作' }).click();
     await expect(session.window.getByRole('list', { name: '风格更新提案' })).toContainText('依据');
     await session.window.getByRole('button', { name: '确认样本' }).click();

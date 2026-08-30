@@ -88,6 +88,7 @@ export class AgentRuntime {
     channel: 'interactive' | 'background',
     promptVersion: string,
     userContent: string,
+    sourceIds: string[] = [],
   ): Promise<{ text: string; trace: GenerationTrace }> {
     const root = this.vault.path;
     if (!root) {
@@ -104,7 +105,7 @@ export class AgentRuntime {
       channel,
       model: endpoint.model,
       promptVersion,
-      sourceIds: [],
+      sourceIds,
       timestamp: new Date().toISOString(),
       usage: {
         promptTokens: estimateTokens(userContent),

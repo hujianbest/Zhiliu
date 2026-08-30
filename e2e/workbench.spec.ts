@@ -192,6 +192,7 @@ test('并列修订不改原文，检索顺序为用户、来源、AI', async () 
   const session = await launchZhiliu();
   const word = '并列修订探针词';
   try {
+    await configureModels(session.window, session.fakeOpenAI.baseUrl);
     const note = await session.window.evaluate(async (w) => {
       const thought = await window.zhiliu.notes.save({ quotation: `${w} 引文。`, thought: `${w} 我的想法。` });
       await window.zhiliu.notes.save({ quotation: `${w} 摘录。` });
