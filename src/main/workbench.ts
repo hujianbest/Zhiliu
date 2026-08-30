@@ -378,7 +378,7 @@ export class Workbench {
       id: randomUUID(),
       noteId,
       path: note.path.replace(/\.md$/, '.revision.md'),
-      text,
+      text: `${note.thought}\n\n${text}`,
       provenance: 'ai',
     };
     await this.writeRevisionFile(revision);
