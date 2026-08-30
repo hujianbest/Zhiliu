@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import sanitizeHtml from 'sanitize-html';
 import type { AtomicNote, EmbedCall, SearchHit, SearchQueryOptions, SearchQueryResult } from '../shared/api';
+import { EmbeddingError } from './embeddings';
 import type { EmbeddingAdapter } from './embeddings';
 import { extractReading } from './epub';
 import { KeywordIndex, type KeywordDoc } from './keyword-index';
@@ -92,6 +93,7 @@ export class SearchIndex {
   private docs: KeywordDoc[] = [];
   private readonly keyword = new KeywordIndex();
   private readonly vectors = new Map<string, VectorDoc>();
+  private degraded: SearchQueryResult['degraded'] = null;
 
   constructor(
     private readonly vault: Vault,
@@ -121,15 +123,12 @@ export class SearchIndex {
 
   async indexImportedSources(): Promise<void> {
     await this.rebuildKeyword();
-    for (const doc of this.docs) {
-      if ((doc.kind === 'epub' || doc.kind === 'pdf') && !this.vectors.has(doc.id)) {
-        await this.upsertVector(doc);
-      }
-    }
+    void this.embedMissing();
   }
 
   async queryDetailed(q: string, options?: SearchQueryOptions): Promise<SearchQueryResult> {
-    return { hits: await this.query(q, options), degraded: null };
+    const hits = await this.query(q, options);
+    return { hits, degraded: this.degraded };
   }
 
   async query(q: string, options?: SearchQueryOptions): Promise<SearchHit[]> {
@@ -160,12 +159,20 @@ export class SearchIndex {
     this.keyword.replaceAll(this.docs);
   }
 
+  private async embedMissing(): Promise<void> {
+    for (const doc of this.docs) {
+      if ((doc.kind === 'epub' || doc.kind === 'pdf') && !this.vectors.has(doc.id)) {
+        await this.upsertVector(doc);
+      }
+    }
+  }
+
   private async upsertVector(doc: KeywordDoc): Promise<void> {
     try {
       const vector = await this.embeddings.embed(doc.id, doc.text);
       this.vectors.set(doc.id, { ...doc, vector });
-    } catch {
-      // Embedding runtime unavailable: keyword search still works.
+    } catch (error) {
+      this.degraded = classifyDegraded(error);
     }
   }
 
@@ -242,7 +249,8 @@ export class SearchIndex {
     let queryVector: number[];
     try {
       queryVector = await this.embeddings.embed('query', trimmed);
-    } catch {
+    } catch (error) {
+      this.degraded = classifyDegraded(error);
       return [];
     }
     return [...this.vectors.values()]
@@ -265,4 +273,15 @@ function mergeHits(keywordHits: SearchHit[], semanticHits: SearchHit[]): SearchH
     merged.push(hit);
   }
   return merged;
+}
+
+function classifyDegraded(error: unknown): SearchQueryResult['degraded'] {
+  if (error instanceof EmbeddingError) {
+    return error.code;
+  }
+  const code = error && typeof error === 'object' && 'code' in error ? String((error as { code: unknown }).code) : '';
+  if (code === 'missing-model' || code === 'onnx' || code === 'worker') {
+    return code;
+  }
+  return 'worker';
 }

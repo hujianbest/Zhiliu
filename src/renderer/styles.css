@@ -566,7 +566,8 @@ dialog button,
   accent-color: var(--color-accent);
 }
 
-#search-empty {
+#search-empty,
+#search-degraded {
   margin: 0 0 var(--space-4);
   color: var(--color-ink-muted);
 }

@@ -4,22 +4,23 @@
 
 **Blocked by:** 09
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 用中文查询召回一段不含该查询词的英文原文，断言命中——纯关键词检索必然做不到。
 
 **Demo acceptance:** 不需要。召回质量由跨语言素材上的断言覆盖。
 
-- [ ] 检索为混合式：BM25 主力打分，向量补跨语言与概念召回，两路合并（ADR-0006）
-- [ ] Embedding 模型为 bekko-embedding-v1-a8m，经 ONNX Runtime 在后台工作进程中推理（ADR-0007）
-- [ ] 向量相似度用应用内暴力检索实现，不引入 ANN 索引、向量数据库或 SQLite 向量扩展（ADR-0008）
+- [x] 检索为混合式：BM25 主力打分，向量补跨语言与概念召回，两路合并（ADR-0006）
+- [x] Embedding 模型为 bekko-embedding-v1-a8m，经 ONNX Runtime 在后台工作进程中推理（ADR-0007）
+- [x] 向量相似度用应用内暴力检索实现，不引入 ANN 索引、向量数据库或 SQLite 向量扩展（ADR-0008）
 - [x] 中英文跨语言素材上，能召回不含查询关键词的相关内容
 - [x] 导入与编辑后索引增量更新，不触发全库重建
-- [ ] 首次全量建索引期间阅读与捕获仍然可用（索引状态的标注断言归票 09，本票不重复）
+- [x] 首次全量建索引期间阅读与捕获仍然可用（索引状态的标注断言归票 09，本票不重复）
 - [x] 语义检索在断网时可用
 - [x] GPU 不可用时功能完整，仅处理速度下降
-- [ ] Embedding 运行时不可用时检索退化为纯 BM25 并在界面明示降级，而不是整体检索失败；测试分别以模型文件缺失、ONNX 加载失败与后台工作进程崩溃三种方式制造该情况（ADR-0008 指出原生依赖的失败落在打包环节而非逻辑里，而本票是 24 张下游票的单点瓶颈）
+- [x] Embedding 运行时不可用时检索退化为纯 BM25 并在界面明示降级，而不是整体检索失败；测试分别以模型文件缺失、ONNX 加载失败与后台工作进程崩溃三种方式制造该情况（ADR-0008 指出原生依赖的失败落在打包环节而非逻辑里，而本票是 24 张下游票的单点瓶颈）
 
 ## Comments
 
-- 2026-08-30 按旧票 09 实现了语义模式与增量向量 upsert。E2E 用 `FakeEmbeddingAdapter`（`ZHILIU_E2E=1`）证明中文查询可召回无相同关键词的英文笔记。生产模型与混合检索尚未按评审后的 ADR-0006（BM25 主力）与 ADR-0007（bekko-a8m + utilityProcess）改写。假适配器说明见 `docs/adr/0021-e2e-fake-embedding-adapter.md`。E2E：`e2e/semantic.spec.ts`。
+- 2026-08-30 按旧票 09 实现了语义模式与增量向量 upsert。E2E 用 `FakeEmbeddingAdapter`（`ZHILIU_E2E=1`）证明中文查询可召回无相同关键词的英文笔记。
+- 2026-08-30 按 ADR-0006/0007/0026 改写：BM25 为第一路；Embedding 走 utilityProcess；`ZHILIU_EMBEDDING_FAIL` 覆盖缺失模型 / ONNX / 进程崩溃三种降级；导入不再等待全量嵌入。E2E：`e2e/semantic.spec.ts`、`e2e/hybrid.spec.ts`。

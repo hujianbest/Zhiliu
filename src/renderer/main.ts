@@ -713,6 +713,11 @@ function openSearch(): void {
   if (empty) {
     empty.hidden = true;
   }
+  const degraded = document.getElementById('search-degraded');
+  if (degraded) {
+    degraded.hidden = true;
+    degraded.textContent = '';
+  }
   dialog.showModal();
   searchQuery().focus();
 }
@@ -767,12 +772,25 @@ async function runSearch(): Promise<void> {
   const seq = ++searchSeq;
   const list = document.getElementById('search-results');
   list?.setAttribute('aria-busy', 'true');
-  const hits = await window.zhiliu.search.query(q, { mode: currentSearchMode() });
+  const result = await window.zhiliu.search.queryDetailed(q, { mode: currentSearchMode() });
   if (seq !== searchSeq) {
     return;
   }
   list?.setAttribute('aria-busy', 'false');
-  renderSearchHits(hits);
+  renderSearchHits(result.hits);
+  const degraded = document.getElementById('search-degraded');
+  if (degraded) {
+    const copy =
+      result.degraded === 'missing-model'
+        ? '本地语义模型不可用，目前只用关键词检索。'
+        : result.degraded === 'onnx'
+          ? '语义引擎未能加载，目前只用关键词检索。'
+          : result.degraded === 'worker'
+            ? '后台语义进程已停止，目前只用关键词检索。'
+            : '';
+    degraded.textContent = copy;
+    degraded.hidden = copy === '';
+  }
 }
 
 async function revealNote(note: AtomicNote): Promise<void> {

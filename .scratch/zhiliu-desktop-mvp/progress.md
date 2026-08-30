@@ -3,4 +3,4 @@
 - 当前阶段: implement
 - 执行模式: auto
 - 已加载: hf-ui-design
-- 下一步: 实现票 12 剩余（bekko/ONNX utilityProcess、混合检索降级）；票 14 按 ADR-0009 留在 needs-triage
+- 下一步: 实现票 13（网页 URL 导入）；票 14 按 ADR-0009 留在 needs-triage

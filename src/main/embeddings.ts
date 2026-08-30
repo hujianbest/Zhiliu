@@ -1,8 +1,21 @@
 import type { EmbedCall } from '../shared/api';
+import type { UtilityWorkerHost } from './utility-host';
+
+export type EmbeddingDegraded = 'missing-model' | 'onnx' | 'worker';
 
 export interface EmbeddingAdapter {
   embed(id: string, text: string): Promise<number[]>;
   embedCalls(): EmbedCall[];
+}
+
+export class EmbeddingError extends Error {
+  constructor(
+    message: string,
+    readonly code: EmbeddingDegraded,
+  ) {
+    super(message);
+    this.name = 'EmbeddingError';
+  }
 }
 
 const FAKE_DIM = 64;
@@ -41,7 +54,7 @@ function addFeature(vec: number[], feature: string): void {
 }
 
 function l2(vec: number[]): number[] {
-  const norm = Math.sqrt(vec.reduce((sum, value) => sum + value * value, 0));
+  const norm = Math.sqrt(vec.reduce((sum, value) => value * value + sum, 0));
   if (norm === 0) {
     return vec;
   }
@@ -59,11 +72,25 @@ export function hashVector(text: string, dim: number, cluster = false): number[]
   return l2(vec);
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export class FakeEmbeddingAdapter implements EmbeddingAdapter {
   private readonly calls: EmbedCall[] = [];
+  private readonly delayMs: number;
+
+  constructor(env: NodeJS.ProcessEnv = process.env) {
+    this.delayMs = Number(env.ZHILIU_EMBED_DELAY_MS ?? 0) || 0;
+  }
 
   async embed(id: string, text: string): Promise<number[]> {
     this.calls.push({ id });
+    if (this.delayMs > 0 && (id.startsWith('epub:') || id.startsWith('pdf:'))) {
+      await sleep(this.delayMs);
+    }
     return hashVector(text, FAKE_DIM, true);
   }
 
@@ -75,10 +102,29 @@ export class FakeEmbeddingAdapter implements EmbeddingAdapter {
 export class OnnxEmbeddingStore implements EmbeddingAdapter {
   private readonly calls: EmbedCall[] = [];
 
+  constructor(
+    private readonly host: () => UtilityWorkerHost | null = () => null,
+    private readonly env: NodeJS.ProcessEnv = process.env,
+  ) {}
+
   async embed(id: string, text: string): Promise<number[]> {
     this.calls.push({ id });
-    await this.loadRuntime();
-    return hashVector(text, ONNX_DIM);
+    const fail = this.env.ZHILIU_EMBEDDING_FAIL;
+    if (fail === 'missing') {
+      throw new EmbeddingError('本地语义模型不可用', 'missing-model');
+    }
+    if (fail === 'onnx') {
+      throw new EmbeddingError('语义引擎未能加载', 'onnx');
+    }
+    const worker = this.host();
+    if (worker) {
+      return worker.embed(text);
+    }
+    if (this.env.ZHILIU_PLATFORM_EMBEDDINGS === '1') {
+      await this.loadRuntime();
+      return hashVector(text, ONNX_DIM);
+    }
+    throw new EmbeddingError('本地语义模型不可用', 'missing-model');
   }
 
   embedCalls(): EmbedCall[] {
@@ -89,15 +135,21 @@ export class OnnxEmbeddingStore implements EmbeddingAdapter {
     try {
       await import('onnxruntime-node');
     } catch {
-      // Weights and the native runtime are optional until bundled; CPU hashing
-      // keeps the contract complete without a GPU or a model download.
+      throw new EmbeddingError('语义引擎未能加载', 'onnx');
     }
   }
 }
 
-export function createEmbeddingAdapter(env: NodeJS.ProcessEnv = process.env): EmbeddingAdapter {
-  if (env.ZHILIU_E2E === '1') {
-    return new FakeEmbeddingAdapter();
+export function createEmbeddingAdapter(
+  env: NodeJS.ProcessEnv = process.env,
+  host: () => UtilityWorkerHost | null = () => null,
+): EmbeddingAdapter {
+  const fail = env.ZHILIU_EMBEDDING_FAIL;
+  if (fail === 'missing' || fail === 'onnx' || fail === 'crash') {
+    return new OnnxEmbeddingStore(host, env);
   }
-  return new OnnxEmbeddingStore();
+  if (env.ZHILIU_E2E === '1') {
+    return new FakeEmbeddingAdapter(env);
+  }
+  return new OnnxEmbeddingStore(host, env);
 }

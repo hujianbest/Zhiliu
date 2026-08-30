@@ -15,6 +15,8 @@ export type LaunchOptions = {
   chooseFiles?: string[];
   preserveUserData?: boolean;
   preserveVault?: boolean;
+  embeddingFail?: 'missing' | 'onnx' | 'crash';
+  embedDelayMs?: number;
 };
 
 export type ZhiliuSession = {
@@ -73,6 +75,14 @@ export async function launchZhiliu(options: LaunchOptions = {}): Promise<ZhiliuS
 
   if (options.chooseFiles && options.chooseFiles.length > 0) {
     env.ZHILIU_CHOOSE_FILES = JSON.stringify(options.chooseFiles);
+  }
+
+  if (options.embeddingFail) {
+    env.ZHILIU_EMBEDDING_FAIL = options.embeddingFail;
+  }
+
+  if (options.embedDelayMs && options.embedDelayMs > 0) {
+    env.ZHILIU_EMBED_DELAY_MS = String(options.embedDelayMs);
   }
 
   const app = await electron.launch({

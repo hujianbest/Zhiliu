@@ -30,7 +30,7 @@ await Promise.all([
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['electron'],
+    external: ['electron', 'onnxruntime-node'],
     logLevel: 'info',
   }),
   esbuild.build({

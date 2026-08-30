@@ -29,9 +29,9 @@ const vault = new Vault(preferences, process.env);
 const git = new VaultGit(() => vault.path);
 const library = new Library(vault, process.env);
 const reading = new Reading(library, preferences);
-const search = new SearchIndex(vault, library, createEmbeddingAdapter(process.env));
-const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
 let utilityWorker: UtilityWorkerHost | null = null;
+const search = new SearchIndex(vault, library, createEmbeddingAdapter(process.env, () => utilityWorker));
+const models = new ModelSettings(preferences, createCredentialStore(app.getPath('userData'), process.env));
 (globalThis as { __zhiliuPingWorker?: () => Promise<boolean> }).__zhiliuPingWorker = () => {
   if (!utilityWorker) {
     return Promise.reject(new Error('utilityProcess 尚未启动'));
@@ -140,7 +140,7 @@ ipcMain.handle('library:import', async () => {
   if (stub) {
     const result = await library.importPaths(stub);
     await git.commit('导入来源文档');
-    await search.indexImportedSources();
+    void search.indexImportedSources();
     return result;
   }
   const picked = await dialog.showOpenDialog({
@@ -157,7 +157,7 @@ ipcMain.handle('library:import', async () => {
   }
   const result = await library.importPaths(picked.filePaths);
   await git.commit('导入来源文档');
-  await search.indexImportedSources();
+  void search.indexImportedSources();
   return result;
 });
 

@@ -14,4 +14,4 @@
 - A-12 2026-08-30 [生效] AUTO：语义检索主套件用假 Embedding 适配器（`ZHILIU_E2E=1`）。生产路径按评审后 ADR-0007（bekko-a8m）与 ADR-0006（BM25 主力），由现票 12 改写 — 默认理由: 旧票 09 实现时尚未有 bekko/BM25 决定。
 - A-13 2026-08-30 [生效] AUTO：票 06 在 Linux 云环境产出 `electron-builder` 的 Linux `dir` 布局，作为 Playwright 启动打包二进制的测试缝；Windows NSIS 与 macOS 自签 DMG 的配置与拒绝 ad-hoc 的门禁已写入 `scripts/pack.mjs`，真实签名产物与 Gatekeeper/SmartScreen 弹窗必须在对应操作系统上由人核对。证书私钥不进仓库。 — 默认理由: 本环境不是 macOS/Windows 构建机，不能假装已经完成跨平台签名与人工弹窗核对。
 - A-14 2026-08-30 [生效] AUTO：PDF 与 EPUB 共用导入按钮「导入 EPUB 或 PDF」；PDF 文本层由主进程 pdf.js 抽出为净化 HTML；无文本层只提示无法选中，不做 OCR。出处 `pdf:<page>:<start>:<end>:<x0>:<y0>:<x1>:<y1>`。 — 默认理由: 票 10、ADR-0009、ADR-0024。
-- A-15 2026-08-30 [生效] AUTO：知识库是本地 Git 仓库；应用内时间线只展示中文操作摘要与「回滚到此处」，不提供分支/远端/rebase。提交作者固定为 `知流 <zhiliu@localhost>`。追踪 Markdown 与轻量元数据，忽略来源二进制、缓存、模型与预留 OCR 目录。回滚为 `git reset --hard` 后重建索引。 — 默认理由: 票 11、ADR-0025。
+- A-16 2026-08-30 [生效] AUTO：混合检索以 FTS5 BM25 为第一路，向量只补跨语言与概念召回。Embedding 在 utilityProcess 中推理；`ZHILIU_E2E=1` 仍用假适配器。`ZHILIU_EMBEDDING_FAIL=missing|onnx|crash` 分别制造三种降级。导入不等待全量嵌入。 — 默认理由: 票 12、ADR-0006、ADR-0007、ADR-0026。
