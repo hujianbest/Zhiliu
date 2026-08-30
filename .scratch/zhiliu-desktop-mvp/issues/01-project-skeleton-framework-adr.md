@@ -1,18 +1,26 @@
-# 01: 项目骨架与桌面框架 ADR
+# 01: 项目骨架与端到端测试缝
 
-**What to build:** 用户可以在 Windows 与 macOS 上启动知流应用窗口，看到「书库/阅读」「思想」「创作」三个主空间的导航以及全局 Agent 侧栏的位置，界面呈现安静的现代书房观感而非聊天优先的界面。同时确立本仓库唯一的端到端测试缝：测试驱动可见的用户流程，运行在隔离的临时知识库与确定性的假 OpenAI 兼容服务之上。这条缝是后续所有票的先例。
+**What to build:** 用户可以在 Windows 与 macOS 上启动知流应用窗口，看到「书库/阅读」「思想」「创作」三个主空间的导航以及全局 Agent 侧栏的位置，界面呈现安静的现代书房观感而非聊天优先的界面。同时确立本仓库唯一的端到端测试缝：Playwright 启动打包后的应用、驱动可见的用户流程，运行在隔离的临时知识库与确定性的假 OpenAI 兼容服务之上。这条缝是后续所有票的先例，也是这个项目唯一的质量闸门——它坏了，后面所有票的验收都失效，因此本票的起始失败测试必须打在这条缝上，而不是打在导航元素是否存在上。框架已由 ADR-0005 定为 Electron，本票执行该决定，不重做选型。
 
 **Blocked by:** None (can start immediately)
 
 **Status:** ready-for-agent
 
-- [x] 记录桌面框架选型 ADR，说明该选择如何满足本地文件访问、系统凭据库、EPUB/PDF 的 web 式渲染、后台原生处理、测试自动化与两平台未签名打包
-- [x] 应用可在 Windows 与 macOS 上启动，展示三个主空间与全局 Agent 侧栏，空间之间可用鼠标与键盘切换
-- [x] 端到端测试可以启动应用、指向一个隔离的临时知识库、断言可见界面，并在结束时清理
-- [x] 端到端测试可以把全部模型调用指向确定性的假 OpenAI 兼容服务、不需要任何真实凭据
+**Starting failing test:** 在一个隔离的临时目录中启动打包后的应用，向假 OpenAI 兼容服务发起一次调用，断言该服务确实记录到这次调用、且请求中不含任何真实凭据；断言应用退出后临时目录被清理。同时附带断言三个主空间导航与全局 Agent 侧栏都存在。
+
+**Demo acceptance:** 需要。安静书房的观感与低干扰程度无法由断言表达。
+
+- [x] 应用基于 Electron，可在 Windows 与 macOS 上启动，展示三个主空间与全局 Agent 侧栏，鼠标与键盘都能切换
+- [ ] 端到端测试用 Playwright 启动打包后的二进制，既能驱动界面也能检查主进程状态
+- [ ] 打包配置保持 `EnableNodeCliInspectArguments` fuse 启用，否则测试启动会静默超时
+- [ ] 建立 `utilityProcess` 形式的后台工作进程骨架，并确立 CPU 密集任务一律不进 `worker_threads` 的约束（ADR-0005）
+- [x] 端到端测试可指向隔离的临时知识库，并在结束时清理
+- [x] 端到端测试可把全部模型调用指向确定性的假 OpenAI 兼容服务，不需要任何真实凭据；测试能检查该假服务收到了什么
+- [ ] 仓库中记录端到端断言的范围规则并明确它是后续所有票的先例：断言用户可见行为与磁盘上的持久产物，不断言私有组件结构、内部方法调用、具体数据库查询、提示词空白与偶然的文件顺序
 - [x] 仓库根目录包含 MIT 许可证文件
 - [x] 一条命令即可在本地运行完整端到端测试套件
+- [ ] 文档记录最低支持系统，取值来自所用 Electron 大版本的 Chromium 下界而非写死某个版本号（ADR-0005）
 
 ## Comments
 
-- 2026-08-29 票 01 已实现。框架选型见 `docs/adr/0001-electron-as-the-desktop-framework.md`。端到端缝为 `e2e/helpers/launch.ts` 的 `launchZhiliu()`：Playwright 启动 Electron，注入隔离知识库目录与假 OpenAI 服务，结束后清理。本环境（Linux）上 `npm test` 5 项通过。Windows / macOS 启动未在本环境验证；Ctrl/Cmd+1/2/3 切换空间。安静书房观感需人看一眼。
+- 2026-08-29 票 01 已按当时规格实现外壳与测试缝。框架见评审后的 `docs/adr/0005-electron-as-the-desktop-framework.md`。当前 `npm test` 用 Playwright 启动**未打包**的 Electron（`e2e/helpers/launch.ts` 的 `launchZhiliu()`），尚未改成启动打包二进制，也尚未落 `utilityProcess` 骨架与 fuse 文档。Windows / macOS 启动未在本环境验证。
