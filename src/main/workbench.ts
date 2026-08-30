@@ -182,50 +182,61 @@ export class Workbench {
     if (!state.privacy.crashReports) {
       return { outbound: null };
     }
-    const outbound = {
-      kind: 'crash',
-      message: typeof payload.message === 'string' ? payload.message.replace(/\/[^\s]+/g, '[path]') : 'crash',
-    };
-    return { outbound };
+    const raw = typeof payload.message === 'string' ? payload.message : 'crash';
+    const message = raw
+      .replace(/\/[^\s]+/g, '[path]')
+      .replace(/\bsk-[A-Za-z0-9_-]+/g, '[key]')
+      .replace(/[\u3400-\u9fff]+/g, '[text]');
+    return { outbound: { kind: 'crash', message } };
   }
 
   async cluster(): Promise<TopicView[]> {
     const state = await this.read();
     const notes = await this.vault.listNotes();
-    const pinned = new Set(state.topics.filter((topic) => topic.pinned).map((topic) => topic.id));
-    const kept = state.topics.filter((topic) => topic.pinned);
+    const byId = new Map(notes.map((note) => [note.id, note]));
+    for (const topic of state.topics) {
+      topic.noteIds = topic.noteIds.filter((id) => byId.has(id));
+      topic.sourceIds = [
+        ...new Set(
+          topic.noteIds
+            .map((id) => byId.get(id)?.sourceId)
+            .filter((id): id is string => Boolean(id)),
+        ),
+      ];
+    }
+    state.topics = state.topics.filter((topic) => topic.pinned || topic.noteIds.length > 0);
+    const assigned = new Set(state.topics.flatMap((topic) => topic.noteIds));
+    const leftover = notes.filter((note) => !assigned.has(note.id));
     const groups = new Map<string, AtomicNote[]>();
-    for (const note of notes) {
+    for (const note of leftover) {
       const key = clusterKey(note);
       const group = groups.get(key) ?? [];
       group.push(note);
       groups.set(key, group);
     }
     for (const [title, group] of groups) {
-      if (group.length === 0) {
-        continue;
-      }
-      const existing = kept.find((topic) => topic.title === title);
+      const existing = state.topics.find((topic) => topic.title === title);
       if (existing) {
         existing.noteIds = [...new Set([...existing.noteIds, ...group.map((note) => note.id)])];
-        existing.sourceIds = [...new Set(group.map((note) => note.sourceId).filter((id): id is string => Boolean(id)))];
+        existing.sourceIds = [
+          ...new Set([
+            ...existing.sourceIds,
+            ...group.map((note) => note.sourceId).filter((id): id is string => Boolean(id)),
+          ]),
+        ];
         continue;
       }
-      if ([...pinned].length >= 0) {
-        kept.push({
-          id: randomUUID(),
-          title,
-          origin: 'library-discovery',
-          noteIds: group.map((note) => note.id),
-          sourceIds: [...new Set(group.map((note) => note.sourceId).filter((id): id is string => Boolean(id)))],
-          pinned: false,
-          hidden: false,
-        });
-      }
+      state.topics.push({
+        id: randomUUID(),
+        title,
+        origin: 'library-discovery',
+        noteIds: group.map((note) => note.id),
+        sourceIds: [...new Set(group.map((note) => note.sourceId).filter((id): id is string => Boolean(id)))],
+        pinned: false,
+        hidden: false,
+      });
     }
-    state.topics = kept;
     await this.refreshOrigins(state);
-    this.syncInbox(state);
     await this.write(state);
     return state.topics;
   }
@@ -286,11 +297,11 @@ export class Workbench {
 
   async chat(question: string): Promise<ChatTurn> {
     const hits = await this.search.queryDetailed(question, { mode: 'mix' });
-    const grounded = hits.hits.slice(0, 3);
+    const grounded = hits.hits.filter((hit) => hit.provenance !== 'user').slice(0, 3);
     const paragraphs = [
       ...grounded.map((hit) => ({
         text: hit.snippet,
-        provenance: 'source' as const,
+        provenance: (hit.provenance === 'ai' ? 'ai' : 'source') as 'ai' | 'source',
         sourceId: hit.sourceId || undefined,
         noteId: hit.noteId,
         sourcePosition: hit.sourcePosition,
@@ -414,6 +425,17 @@ ${revision.text}
           confirmed: false,
           included: true,
         })),
+        ...thoughtNotes
+          .filter((note) => note.quotation.trim() !== '')
+          .map((note) => ({
+            id: `${note.id}:source`,
+            kind: 'source' as const,
+            text: note.quotation,
+            noteId: note.id,
+            confirmed: false,
+            included: true,
+          })),
+        { id: randomUUID(), kind: 'ai', text: '模型推演：这些想法可以对照着写成一篇。', confirmed: false, included: false },
         { id: randomUUID(), kind: 'gap', text: '还缺少反例。', confirmed: false, included: false },
       ],
       ready: false,
@@ -511,12 +533,18 @@ ${revision.text}
     if (!proposal.ready) {
       throw new Error('尚未写作就绪');
     }
+    const notes = await this.vault.listNotes();
     const included = proposal.evidence.filter((item) => item.included && item.confirmed && item.kind === 'thought');
-    const spans: ManuscriptSpan[] = included.map((item) => ({
-      text: item.text,
-      provenance: 'user',
-      noteId: item.noteId,
-    }));
+    const spans: ManuscriptSpan[] = included.map((item) => {
+      const note = notes.find((entry) => entry.id === item.noteId);
+      return {
+        text: item.text,
+        provenance: 'user' as const,
+        noteId: item.noteId,
+        sourceId: note?.sourceId ?? undefined,
+        sourcePosition: note?.sourcePosition ?? undefined,
+      };
+    });
     spans.push({ text: proposal.thesis, provenance: 'user' });
     const body = spans.map((span) => span.text).join('\n\n');
     return this.writeManuscript({
@@ -551,10 +579,16 @@ ${revision.text}
       throw new Error('找不到这份稿件');
     }
     const footnotesOn = options?.footnotes !== false;
-    const sources = [...new Set(draft.spans.map((span) => span.sourceId).filter((item): item is string => Boolean(item)))];
+    const sourceIds = [...new Set(draft.spans.map((span) => span.sourceId).filter((item): item is string => Boolean(item)))];
+    const catalog = await this.library.list();
     let markdown = draft.body;
-    if (footnotesOn && sources.length > 0) {
-      markdown += `\n\n## 来源\n${sources.map((sourceId, index) => `${index + 1}. ${sourceId}`).join('\n')}\n`;
+    if (footnotesOn && sourceIds.length > 0) {
+      markdown += `\n\n## 来源\n${sourceIds
+        .map((sourceId, index) => {
+          const source = catalog.find((item) => item.id === sourceId);
+          return `${index + 1}. ${source?.title ?? sourceId}`;
+        })
+        .join('\n')}\n`;
     }
     return { markdown, text: markdown, html: `<p>${markdown.replaceAll('\n', '</p><p>')}</p>` };
   }
@@ -650,7 +684,8 @@ ${revision.text}
       await this.write(latest);
       return { status: '模型不可用，已暂停' };
     }
-    await this.cluster();
+    const topics = await this.cluster();
+    await this.autoWork(topics);
     const after = await this.read();
     after.triggers.lastRun = new Date().toISOString();
     after.triggers.status = after.usage.paused ? '后台已暂停' : '最近一次已完成';
@@ -833,10 +868,46 @@ ${revision.text}
     }
   }
 
+  private async autoWork(topics: TopicView[]): Promise<void> {
+    if (!(await this.allow('background'))) {
+      return;
+    }
+    const manuscripts = await this.listManuscripts();
+    for (const topic of topics) {
+      if (topic.hidden) {
+        continue;
+      }
+      if (topic.origin === 'thought-signal') {
+        const hasTrial = manuscripts.some((item) => item.kind === 'trial' && item.topicId === topic.id);
+        if (hasTrial) {
+          continue;
+        }
+        const notes = await this.vault.listNotes();
+        const thoughts = notes.filter((note) => topic.noteIds.includes(note.id) && note.kind === 'thought_note');
+        const body = thoughts.map((note) => note.thought).join('\n\n') || topic.title;
+        await this.writeManuscript({
+          kind: 'trial',
+          status: 'draft',
+          title: `试写：${topic.title}`,
+          body,
+          topicId: topic.id,
+          spans: [{ text: body, provenance: 'ai' }],
+        });
+        continue;
+      }
+      const state = await this.read();
+      if (!state.proposals.some((item) => item.topicId === topic.id)) {
+        await this.createProposal(topic.id);
+      }
+    }
+  }
+
   private recomputePause(state: State): void {
     const over =
       state.usage.background.tokens >= state.budgets.dailyTokens ||
-      state.usage.background.requests >= state.budgets.dailyRequests;
+      state.usage.background.tokens >= state.budgets.monthlyTokens ||
+      state.usage.background.requests >= state.budgets.dailyRequests ||
+      state.usage.background.requests >= state.budgets.monthlyRequests;
     state.usage.paused = over;
   }
 
@@ -880,7 +951,7 @@ ${revision.text}
 function clusterKey(note: AtomicNote): string {
   const text = `${note.thought}${note.quotation}`;
   const run = text.match(/[\u3400-\u9fff]{2,4}/);
-  return run?.[0] ?? note.thought.slice(0, 8) || '未命名主题';
+  return (run?.[0] ?? note.thought.slice(0, 8)) || '未命名主题';
 }
 
 function parseManuscript(raw: string, filePath: string): ManuscriptView {

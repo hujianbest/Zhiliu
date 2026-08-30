@@ -368,7 +368,7 @@ export type ZhiliuApi = {
     setThesis(proposalId: string, thesis: string): Promise<ProposalView>;
     includeEvidence(proposalId: string, evidenceId: string, included: boolean): Promise<ProposalView>;
     createProposal(topicId: string): Promise<ProposalView>;
-    createManuscript(input: { kind: 'trial' | 'formal'; title: string; body: string; topicId?: string; proposalId?: string; spans?: ManuscriptSpan[] }): Promise<ManuscriptView>;
+    createManuscript(input: { kind: 'trial' | 'formal'; title: string; body: string; topicId?: string; proposalId?: string; trialId?: string; spans?: ManuscriptSpan[] }): Promise<ManuscriptView>;
     saveManuscript(input: { id: string; title: string; body: string; spans?: ManuscriptSpan[] }): Promise<ManuscriptView>;
     finalize(id: string): Promise<ManuscriptView>;
     unfinalize(id: string): Promise<ManuscriptView>;

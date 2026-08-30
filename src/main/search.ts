@@ -57,10 +57,7 @@ function cosine(a: number[], b: number[]): number {
 }
 
 function hitKey(hit: SearchHit): string {
-  if (hit.noteId) {
-    return `note:${hit.noteId}`;
-  }
-  return `${hit.kind}:${hit.sourceId}:${hit.spineIndex ?? 0}`;
+  return `${hit.kind}:${hit.noteId ?? ''}:${hit.sourceId}:${hit.spineIndex ?? 0}:${hit.provenance}`;
 }
 
 function toHit(doc: KeywordDoc, query: string): SearchHit {

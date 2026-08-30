@@ -509,6 +509,7 @@ dialog button:focus-visible,
 #draft-unfinalize,
 #draft-export,
 #draft-export-plain,
+#draft-export-html,
 #organize-topics,
 #agent-organize,
 #agent-ask,
@@ -528,25 +529,23 @@ dialog button:focus-visible,
   cursor: pointer;
 }
 
+button:focus-visible,
+[href]:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
+}
+
 [data-provenance='user'] {
   color: var(--color-focus);
+  font-weight: 700;
 }
 [data-provenance='source'] {
   color: var(--color-accent);
+  font-style: italic;
 }
 [data-provenance='ai'] {
   color: var(--color-ink-muted);
-}
-  appearance: none;
-  min-height: 44px;
-  margin: 0 0 var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-sm);
-  background: var(--color-paper-raised);
-  color: var(--color-ink);
-  font: inherit;
-  cursor: pointer;
+  text-decoration: underline dotted;
 }
 
 .search-provenance {

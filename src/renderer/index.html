@@ -113,6 +113,7 @@
             <button type="button" id="draft-unfinalize">撤回定稿</button>
             <button type="button" id="draft-export">导出 Markdown</button>
             <button type="button" id="draft-export-plain">复制纯文本</button>
+            <button type="button" id="draft-export-html">复制富文本</button>
           </div>
           <label class="search-semantic">
             <input id="export-footnotes" type="checkbox" checked />
@@ -150,6 +151,7 @@
         <p id="agent-result"></p>
         <p id="agent-usage" role="status"></p>
         <p id="agent-paused" hidden>后台已暂停</p>
+        <p id="trigger-status" role="status"></p>
         <label>
           提问
           <textarea id="agent-question" aria-label="提问" rows="3"></textarea>
@@ -222,6 +224,17 @@
           <legend>自动工作</legend>
           <label class="search-semantic"><input name="triggers-enabled" type="checkbox" /> 允许自动工作</label>
           <label class="search-semantic"><input name="triggers-notes" type="checkbox" /> 新增笔记后自动分析</label>
+          <p id="settings-trigger-status" role="status">自动工作：已关闭</p>
+        </fieldset>
+        <fieldset>
+          <legend>快捷键</legend>
+          <ul>
+            <li>检索 Ctrl+K</li>
+            <li>设置 Ctrl+,</li>
+            <li>记下这段 Ctrl+M</li>
+            <li>书库/阅读 Ctrl+1 · 思想 Ctrl+2 · 创作 Ctrl+3</li>
+            <li>目录 T · 上一章 ← · 下一章 → · 标记已读 Shift+R</li>
+          </ul>
         </fieldset>
         <div class="settings-actions">
           <button type="submit">保存</button>

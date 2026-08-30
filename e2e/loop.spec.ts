@@ -329,12 +329,31 @@ test('完整闭环：三份合计超过 1MB 的来源走到干净导出', async 
     const exported = await session.window.evaluate(async () => {
       const view = await window.zhiliu.workbench.view();
       const draft = view.manuscripts.find((item) => item.status === 'final');
-      return draft ? window.zhiliu.workbench.exportManuscript(draft.id, { footnotes: true }) : null;
+      if (!draft) {
+        return null;
+      }
+      const notes = await window.zhiliu.notes.list();
+      const noteIds = new Set(notes.map((item) => item.id));
+      const dangling = draft.spans.filter((span) => span.noteId && !noteIds.has(span.noteId));
+      const file = await window.zhiliu.workbench.exportManuscript(draft.id, { footnotes: true });
+      return { markdown: file.markdown, text: file.text, html: file.html, dangling: dangling.length, sourceIds: [...new Set(draft.spans.map((span) => span.sourceId).filter(Boolean))] };
     });
     expect(exported?.markdown).toContain('## 来源');
+    expect(exported?.markdown).toMatch(/甲卷|乙卷|丙卷/);
+    expect(exported?.sourceIds.length).toBeGreaterThanOrEqual(2);
+    expect(exported?.dangling).toBe(0);
     expect(exported?.markdown).not.toContain('data-provenance');
-    expect(Date.now() - started).toBeLessThan(30 * 60 * 1000);
+    expect(exported?.text).not.toContain('e2e-fake-key');
+    expect(exported?.html).not.toContain('e2e-fake-key');
+    const elapsed = Date.now() - started;
+    expect(elapsed).toBeLessThan(30 * 60 * 1000);
     expect(blocked).toBeLessThan(5 * 60 * 1000);
+    const baseline = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../docs/loop-baseline.md');
+    await writeFile(
+      baseline,
+      `# 完整闭环基线\n\n- 记录于: ${new Date().toISOString().slice(0, 10)}\n- 挂钟: ${elapsed}ms\n- 阻塞等待: ${blocked}ms\n- 上限: 挂钟 30min，阻塞 5min（基线不得用于放宽上限）\n`,
+      'utf8',
+    );
   } finally {
     await session.close();
     await web.close();

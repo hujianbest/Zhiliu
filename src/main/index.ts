@@ -255,20 +255,56 @@ ipcMain.handle('agent:rejectRevision', async (_event, id: string) => {
   await workbench.rejectRevision(typeof id === 'string' ? id : '');
   await search.rebuild();
 });
-ipcMain.handle('agent:runBackground', async () => workbench.runBackground());
+ipcMain.handle('agent:runBackground', async () => {
+  const outcome = await workbench.runBackground();
+  await git.commit('后台工作');
+  return outcome;
+});
 
 ipcMain.handle('workbench:view', async () => workbench.view());
-ipcMain.handle('workbench:saveBudgets', async (_event, input) => workbench.saveBudgets(input));
-ipcMain.handle('workbench:savePrivacy', async (_event, input) => workbench.savePrivacy(input));
-ipcMain.handle('workbench:savePrompt', async (_event, text: string) => workbench.savePrompt(typeof text === 'string' ? text : ''));
-ipcMain.handle('workbench:resetPrompt', async () => workbench.resetPrompt());
-ipcMain.handle('workbench:saveTriggers', async (_event, input) => workbench.saveTriggers(input));
+ipcMain.handle('workbench:saveBudgets', async (_event, input) => {
+  const view = await workbench.saveBudgets(input);
+  await git.commit('更新一条笔记');
+  return view;
+});
+ipcMain.handle('workbench:savePrivacy', async (_event, input) => {
+  const view = await workbench.savePrivacy(input);
+  await git.commit('更新一条笔记');
+  return view;
+});
+ipcMain.handle('workbench:savePrompt', async (_event, text: string) => {
+  const view = await workbench.savePrompt(typeof text === 'string' ? text : '');
+  await git.commit('更新一条笔记');
+  return view;
+});
+ipcMain.handle('workbench:resetPrompt', async () => {
+  const view = await workbench.resetPrompt();
+  await git.commit('更新一条笔记');
+  return view;
+});
+ipcMain.handle('workbench:saveTriggers', async (_event, input) => {
+  const view = await workbench.saveTriggers(input);
+  await git.commit('更新一条笔记');
+  return view;
+});
 ipcMain.handle('workbench:captureCrash', async (_event, payload) => workbench.crashReport(payload ?? {}));
-ipcMain.handle('workbench:renameTopic', async (_event, id: string, title: string) => workbench.renameTopic(id, title));
+ipcMain.handle('workbench:renameTopic', async (_event, id: string, title: string) => {
+  const topic = await workbench.renameTopic(id, title);
+  await git.commit('更新一条笔记');
+  return topic;
+});
 ipcMain.handle('workbench:pinTopic', async (_event, id: string, pinned: boolean) => workbench.pinTopic(id, pinned));
 ipcMain.handle('workbench:hideTopic', async (_event, id: string, hidden: boolean) => workbench.hideTopic(id, hidden));
-ipcMain.handle('workbench:mergeTopics', async (_event, fromId: string, intoId: string) => workbench.mergeTopics(fromId, intoId));
-ipcMain.handle('workbench:splitTopic', async (_event, id: string, noteIds: string[]) => workbench.splitTopic(id, noteIds));
+ipcMain.handle('workbench:mergeTopics', async (_event, fromId: string, intoId: string) => {
+  const topics = await workbench.mergeTopics(fromId, intoId);
+  await git.commit('更新一条笔记');
+  return topics;
+});
+ipcMain.handle('workbench:splitTopic', async (_event, id: string, noteIds: string[]) => {
+  const topics = await workbench.splitTopic(id, noteIds);
+  await git.commit('更新一条笔记');
+  return topics;
+});
 ipcMain.handle('workbench:createProposal', async (_event, topicId: string) => workbench.createProposal(topicId));
 ipcMain.handle('workbench:confirmEvidence', async (_event, proposalId: string, evidenceId: string) =>
   workbench.confirmEvidence(proposalId, evidenceId),
