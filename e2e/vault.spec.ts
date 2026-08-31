@@ -28,7 +28,22 @@ test('首次运行选择知识库后磁盘上出现可读结构', async () => {
   }
 });
 
-test('重启后无需再次选择即可打开同一知识库', async () => {
+test('选择知识库失败时首屏显示原因，而不是没有反应', async () => {
+  const session = await launchZhiliu({ vaultPath: null });
+  try {
+    await expect(session.window.getByRole('button', { name: '选择知识库位置' })).toBeVisible();
+    await session.window.evaluate(() => {
+      window.zhiliu.vault.choose = () => Promise.reject(new Error('索引模块无法加载'));
+    });
+    await session.window.getByRole('button', { name: '选择知识库位置' }).click();
+    await expect(session.window.getByRole('alert', { name: /无法打开知识库/ })).toBeVisible();
+    await expect(session.window.getByRole('alert', { name: /索引模块无法加载/ })).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '书库/阅读' })).toHaveCount(0);
+  } finally {
+    await session.close();
+  }
+});
+
   const vaultPath = path.join(tmpdir(), `zhiliu-chosen-${randomUUID()}`);
   await mkdir(vaultPath, { recursive: true });
   const first = await launchZhiliu({

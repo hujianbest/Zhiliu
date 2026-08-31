@@ -1603,12 +1603,27 @@ document.getElementById('rollback-dialog')?.addEventListener('close', () => {
 });
 
 document.getElementById('choose-vault')?.addEventListener('click', () => {
-  void window.zhiliu.vault.choose().then((status) => {
-    if (!status.firstRun) {
-      showApp(false);
-      void refreshLibrary();
-    }
-  });
+  const error = document.getElementById('first-run-error');
+  if (error) {
+    error.hidden = true;
+    error.textContent = '';
+  }
+  void window.zhiliu.vault
+    .choose()
+    .then((status) => {
+      if (!status.firstRun) {
+        showApp(false);
+        void refreshLibrary();
+      }
+    })
+    .catch((err: unknown) => {
+      if (!error) {
+        return;
+      }
+      const detail = err instanceof Error ? err.message : String(err);
+      error.hidden = false;
+      error.textContent = `无法打开知识库。${detail}`;
+    });
 });
 
 document.getElementById('open-settings')?.addEventListener('click', () => {

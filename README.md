@@ -7,7 +7,8 @@
 ```bash
 npm install
 npm test          # 打包当前平台的未打包目录，再用 Playwright 驱动该二进制
-npm run dev       # 未打包的开发启动
+npm run dev       # 按当前 Electron 重编原生模块后启动（未打包）
+npm run rebuild:native  # 只重编 better-sqlite3 / keytar，供本机 Node 与 Electron ABI 不一致时使用
 npm run pack:dir  # 只产出供测试用的安装布局
 npm run pack      # 当前平台的可分发产物
 ```

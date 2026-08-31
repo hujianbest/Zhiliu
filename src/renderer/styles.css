@@ -336,6 +336,11 @@ textarea {
   margin-bottom: var(--space-6);
 }
 
+#first-run-error {
+  margin: var(--space-4) 0 0;
+  color: var(--color-ink);
+}
+
 .first-run button {
   appearance: none;
   min-height: 44px;
