@@ -76,6 +76,9 @@ test('选中正文后可以记下想法并留在阅读界面', async () => {
     expect(listed[0]?.quotation).toBe(firesideSentence);
     expect(listed[0]?.thought).toBe('炉边这句值得反复读。');
     expect(listed[0]?.sourcePosition).toMatch(/^epub:\d+:\d+:\d+$/);
+    await session.window.getByRole('button', { name: '思想', exact: true }).click();
+    await expect(session.window.getByRole('heading', { name: '思想', exact: true })).toBeVisible();
+    await expect(session.window.getByRole('button', { name: '记下这段' })).toBeHidden();
   } finally {
     await session.close();
   }

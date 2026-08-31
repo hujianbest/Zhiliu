@@ -12,9 +12,13 @@ import {
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const args = new Set(process.argv.slice(2));
 const dirOnly = args.has('--dir');
-const wantWin = args.has('--win');
-const wantMac = args.has('--mac');
-const wantLinux = args.has('--linux') || (!wantWin && !wantMac);
+const explicitWin = args.has('--win');
+const explicitMac = args.has('--mac');
+const explicitLinux = args.has('--linux');
+const anyExplicit = explicitWin || explicitMac || explicitLinux;
+const wantWin = explicitWin || (!anyExplicit && process.platform === 'win32');
+const wantMac = explicitMac || (!anyExplicit && process.platform === 'darwin');
+const wantLinux = explicitLinux || (!anyExplicit && process.platform === 'linux');
 
 if (wantMac && process.platform !== 'darwin') {
   console.error('macOS 安装包必须在 macOS 上构建并签名（ADR-0010）。Linux 交叉编译无法保持稳定的代码签名标识。');
@@ -24,7 +28,7 @@ if (wantMac && process.platform !== 'darwin') {
 const identity = process.env.ZHILIU_CODESIGN_IDENTITY || process.env.CSC_NAME || undefined;
 const certFile = process.env.CSC_LINK;
 
-if (wantMac) {
+if (wantMac && !dirOnly) {
   if (!identity && !certFile) {
     console.error(
       '拒绝 ad-hoc 签名。请在构建机登录钥匙串中安装稳定的自签证书，并设置 ZHILIU_CODESIGN_IDENTITY 或 CSC_LINK。流程见 docs/codesign-certificate.md（ADR-0010）。',
@@ -33,7 +37,7 @@ if (wantMac) {
   }
 }
 
-if (process.platform !== 'darwin') {
+if (process.platform !== 'darwin' || dirOnly) {
   process.env.CSC_IDENTITY_AUTO_DISCOVERY = 'false';
 }
 

@@ -29,6 +29,9 @@ export class MarkdownImporter {
   constructor(private readonly vault: Vault) {}
 
   stubbedDirectory(env: NodeJS.ProcessEnv): string | null {
+    if (env.ZHILIU_E2E !== '1') {
+      return null;
+    }
     const pointer = env.ZHILIU_CHOOSE_MARKDOWN_POINTER;
     if (pointer) {
       try {

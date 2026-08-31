@@ -22,6 +22,9 @@ export class Library {
   ) {}
 
   stubbedFiles(): string[] | null {
+    if (this.env.ZHILIU_E2E !== '1') {
+      return null;
+    }
     const raw = this.env.ZHILIU_CHOOSE_FILES;
     if (!raw) {
       return null;

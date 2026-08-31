@@ -1,11 +1,14 @@
 import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
 import { startFakeOpenAI, type FakeOpenAI } from './fake-openai.js';
 
+const require = createRequire(import.meta.url);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const chromiumFlags = ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'];
 
 export type LaunchOptions = {
   vaultPath?: string | null;
@@ -17,6 +20,7 @@ export type LaunchOptions = {
   embeddingFail?: 'missing' | 'onnx' | 'crash';
   embedDelayMs?: number;
   chooseMarkdownDir?: string;
+  unpackaged?: boolean;
 };
 
 export type ZhiliuSession = {
@@ -49,12 +53,15 @@ export async function launchZhiliu(options: LaunchOptions = {}): Promise<ZhiliuS
     options.vaultPath === null ? null : (options.vaultPath ?? (await mkdtemp(path.join(tmpdir(), 'zhiliu-vault-'))));
   const userDataPath = options.userDataPath ?? (await mkdtemp(path.join(tmpdir(), 'zhiliu-user-data-')));
   const fakeOpenAI = await startFakeOpenAI();
-  const executablePath = packagedExecutablePath();
+  const unpackaged = options.unpackaged === true;
+  const executablePath = unpackaged ? (require('electron') as string) : packagedExecutablePath();
 
-  try {
-    await access(executablePath);
-  } catch {
-    throw new Error(`找不到打包二进制 ${executablePath}。请先运行 npm run pack:dir。`);
+  if (!unpackaged) {
+    try {
+      await access(executablePath);
+    } catch {
+      throw new Error(`找不到打包二进制 ${executablePath}。请先运行 npm run pack:dir。`);
+    }
   }
 
   const env: NodeJS.ProcessEnv = {
@@ -99,7 +106,7 @@ export async function launchZhiliu(options: LaunchOptions = {}): Promise<ZhiliuS
 
   const app = await electron.launch({
     executablePath,
-    args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer'],
+    args: unpackaged ? [repoRoot, ...chromiumFlags] : chromiumFlags,
     env,
     timeout: 60_000,
   });

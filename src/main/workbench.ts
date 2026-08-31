@@ -370,7 +370,7 @@ export class Workbench {
       throw new Error('找不到这条笔记');
     }
     const view = await this.view();
-    const prompt = `请根据这些摘录做一次分析，改写成并列修订，不要覆盖用户原文：${JSON.stringify({ quotation: note.quotation, thought: note.thought })}`;
+    const prompt = `请把这条思想改写成并列修订，保留原意，不要覆盖用户原文：${JSON.stringify({ quotation: note.quotation, thought: note.thought })}`;
     const sourceIds = note.sourceId ? [note.sourceId] : [];
     const { text, trace } = await this.agent.completeTask('revise', 'interactive', view.prompt.version, prompt, sourceIds);
     await this.record(trace);
@@ -568,7 +568,7 @@ export class Workbench {
     if (state.style.text.trim()) {
       spans.push({ text: `风格档案（可见影响）：${state.style.text.trim()}`, provenance: 'ai' });
     }
-    const prompt = `请根据这些摘录做一次分析，写成正式稿。论点：${proposal.thesis}。风格：${state.style.text}。证据：${included.map((item) => item.text).join(' / ')}`;
+    const prompt = `请根据这些摘录写成正式稿。论点：${proposal.thesis}。风格：${state.style.text}。证据：${included.map((item) => item.text).join(' / ')}`;
     const sourceIds = [...new Set(included.map((item) => notes.find((note) => note.id === item.noteId)?.sourceId).filter((id): id is string => Boolean(id)))];
     const { text, trace } = await this.agent.completeTask('write', 'interactive', this.promptVersion(state), prompt, sourceIds);
     await this.record(trace);

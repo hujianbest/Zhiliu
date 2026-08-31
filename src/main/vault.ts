@@ -77,6 +77,9 @@ export class Vault {
   }
 
   stubbedChoice(): string | null {
+    if (this.env.ZHILIU_E2E !== '1') {
+      return null;
+    }
     return this.env.ZHILIU_CHOOSE_DIRECTORY ?? null;
   }
 

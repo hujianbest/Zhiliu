@@ -1256,11 +1256,17 @@ window.addEventListener('keydown', (event) => {
 });
 
 document.getElementById('import-epub')?.addEventListener('click', () => {
-  void window.zhiliu.library.importEpubs().then((result) => {
-    renderLibrary(result.sources);
-    showLibraryFailures(result.failures);
-    void refreshThoughts();
-  });
+  void window.zhiliu.library
+    .importEpubs()
+    .then((result) => {
+      renderLibrary(result.sources);
+      showLibraryFailures(result.failures);
+      void refreshThoughts();
+    })
+    .catch((err: unknown) => {
+      const detail = err instanceof Error ? err.message : String(err);
+      showLibraryFailures([{ filename: '导入', message: detail }]);
+    });
 });
 
 function urlDialog(): HTMLDialogElement {

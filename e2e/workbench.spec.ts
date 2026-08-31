@@ -205,6 +205,8 @@ test('并列修订不改原文，检索顺序为用户、来源、AI', async () 
     await session.window.evaluate(async (id) => window.zhiliu.agent.revise(id), note.id);
     await session.window.getByRole('button', { name: '思想', exact: true }).click();
     await expect(session.window.getByRole('list', { name: '并列修订' })).toContainText('待处理');
+    await expect(session.window.getByRole('list', { name: '并列修订' })).not.toContainText('假分析');
+    await expect(session.window.getByRole('list', { name: '并列修订' })).not.toContainText('{"summary"');
     await expect(session.window.getByRole('button', { name: '接受' })).toBeVisible();
     await expect(session.window.getByRole('button', { name: '拒绝' })).toBeVisible();
     await expect(session.window.getByRole('button', { name: '编辑后采用' })).toBeVisible();

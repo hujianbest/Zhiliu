@@ -97,6 +97,10 @@ body {
   overflow: auto;
 }
 
+[data-space-panel][hidden] {
+  display: none !important;
+}
+
 .workspace h1,
 .agent h2 {
   margin: 0 0 var(--space-4);
@@ -109,13 +113,13 @@ body {
   font-size: 2rem;
 }
 
-.workspace:has(#library-reader:not([hidden])) {
+.workspace:has([data-space-panel='library']:not([hidden]) #library-reader:not([hidden])) {
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
-.workspace:has(#library-reader:not([hidden])) [data-space-panel="library"] {
+.workspace:has([data-space-panel='library']:not([hidden]) #library-reader:not([hidden])) [data-space-panel='library'] {
   display: flex;
   flex-direction: column;
   flex: 1;
