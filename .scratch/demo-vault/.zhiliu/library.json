@@ -1,4 +1,41 @@
 {
   "version": 1,
-  "sources": []
+  "sources": [
+    {
+      "id": "c8b2f7a8-786d-41f2-aabc-0eec3caf3086",
+      "kind": "epub",
+      "title": "炉边小札",
+      "authors": [
+        "林间"
+      ],
+      "indexStatus": "pending",
+      "originalFilename": "fireside-notes.epub"
+    },
+    {
+      "id": "26ea1cf5-f29c-4470-9823-8ada766092b1",
+      "kind": "pdf",
+      "title": "selectable-notes",
+      "authors": [],
+      "indexStatus": "pending",
+      "originalFilename": "selectable-notes.pdf"
+    },
+    {
+      "id": "01811ccf-8990-498e-bdaf-e112cf68c0a5",
+      "kind": "epub",
+      "title": "炉边小札",
+      "authors": [
+        "林间"
+      ],
+      "indexStatus": "pending",
+      "originalFilename": "fireside-notes.epub"
+    },
+    {
+      "id": "38f52c40-b6e4-4b45-9dab-a4174310b64f",
+      "kind": "pdf",
+      "title": "selectable-notes",
+      "authors": [],
+      "indexStatus": "pending",
+      "originalFilename": "selectable-notes.pdf"
+    }
+  ]
 }
