@@ -12,6 +12,9 @@ test('启动后展示三个主空间与全局 Agent 侧栏', async () => {
     await expect(window.getByRole('button', { name: '思想' })).toBeVisible();
     await expect(window.getByRole('button', { name: '创作' })).toBeVisible();
     await expect(window.getByRole('complementary', { name: 'Agent' })).toBeVisible();
+    await expect(window).toHaveTitle('知流');
+    const name = await session.app.evaluate(({ app }) => app.getName());
+    expect(name).toBe('知流');
   } finally {
     await session.close();
   }

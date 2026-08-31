@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import path from 'node:path';
 import type { SaveModelSettingsInput, SaveNoteInput, SearchQueryOptions, TurnDirection } from '../shared/api';
@@ -16,8 +17,20 @@ import { Vault } from './vault';
 import { VaultWatcher } from './watcher';
 import { Workbench } from './workbench';
 
+app.setName('知流');
+
 if (process.env.ZHILIU_USER_DATA) {
   app.setPath('userData', process.env.ZHILIU_USER_DATA);
+}
+
+function resolveAppIcon(): string | undefined {
+  const files = [
+    path.join(__dirname, '../../build/icon.png'),
+    path.join(process.resourcesPath, 'icon.png'),
+    path.join(__dirname, '../../build/icon.icns'),
+    path.join(process.resourcesPath, 'icon.icns'),
+  ];
+  return files.find((file) => existsSync(file));
 }
 
 if (process.env.ZHILIU_E2E === '1') {
@@ -50,6 +63,7 @@ let mainWindow: BrowserWindow | null = null;
 };
 
 function createWindow(): void {
+  const icon = resolveAppIcon();
   const window = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -59,6 +73,7 @@ function createWindow(): void {
     title: '知流',
     show: false,
     autoHideMenuBar: true,
+    ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
@@ -418,6 +433,16 @@ ipcMain.handle('workbench:inboxAct', async (_event, id: string, action: 'accept'
 });
 
 app.whenReady().then(async () => {
+  if (process.platform === 'darwin' && app.dock) {
+    const icon = resolveAppIcon();
+    if (icon) {
+      try {
+        app.dock.setIcon(icon);
+      } catch {
+        // Dock icon is best-effort for unpackaged launches.
+      }
+    }
+  }
   utilityWorker = new UtilityWorkerHost();
   await vault.openFromEnvironment();
   await git.commit('创建知识库');

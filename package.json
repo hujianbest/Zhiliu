@@ -11,7 +11,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "rebuild:native": "node ./node_modules/@electron/rebuild/lib/cli.js -f --only better-sqlite3,keytar",
-    "dev": "npm run rebuild:native && npm run build && electron .",
+    "dev": "npm run rebuild:native && npm run build && node scripts/brand-dev-app.mjs && node scripts/dev-launch.mjs",
     "pack": "npm run build && node scripts/pack.mjs",
     "pack:dir": "npm run build && node scripts/pack.mjs --dir",
     "pack:win": "npm run build && node scripts/pack.mjs --win",

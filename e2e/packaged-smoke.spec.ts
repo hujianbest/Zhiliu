@@ -1,8 +1,13 @@
+import { execFile } from 'node:child_process';
 import { access, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { expect, test } from '@playwright/test';
 import { launchZhiliu, packagedExecutablePath } from './helpers/launch.js';
+
+const execFileAsync = promisify(execFile);
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 const fireside = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fireside-notes.epub');
 
@@ -82,4 +87,23 @@ test('utilityProcess 在打包应用中可响应，且 keytar 已从 asar 解出
   } finally {
     await session.close();
   }
+});
+
+test('macOS 打包应用的显示名是知流，并且带有应用图标', async () => {
+  test.skip(process.platform !== 'darwin', 'CFBundle 只在 macOS 打包产物上核对');
+  await access(path.join(repoRoot, 'build/icon.png'));
+  await access(path.join(repoRoot, 'build/icon.icns'));
+  const appPath = path.join(repoRoot, 'release/mac/知流.app');
+  const plist = path.join(appPath, 'Contents/Info.plist');
+  const { stdout: displayName } = await execFileAsync('/usr/libexec/PlistBuddy', [
+    '-c',
+    'Print :CFBundleDisplayName',
+    plist,
+  ]);
+  const { stdout: bundleName } = await execFileAsync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleName', plist]);
+  expect(displayName.trim()).toBe('知流');
+  expect(bundleName.trim()).toBe('知流');
+  const { stdout: iconFile } = await execFileAsync('/usr/libexec/PlistBuddy', ['-c', 'Print :CFBundleIconFile', plist]);
+  const iconName = iconFile.trim().endsWith('.icns') ? iconFile.trim() : `${iconFile.trim()}.icns`;
+  await access(path.join(appPath, 'Contents/Resources', iconName));
 });
