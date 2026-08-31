@@ -1,0 +1,61 @@
+{
+  "budgets": {
+    "dailyTokens": 100000,
+    "monthlyTokens": 1000000,
+    "dailyRequests": 200,
+    "monthlyRequests": 2000,
+    "sharedHardCap": false
+  },
+  "usage": {
+    "interactive": {
+      "tokens": 0,
+      "requests": 0,
+      "estimated": true
+    },
+    "background": {
+      "tokens": 0,
+      "requests": 0,
+      "estimated": true
+    },
+    "paused": false
+  },
+  "usageDay": "2026-08-31",
+  "usageMonth": "2026-08",
+  "usageMonthly": {
+    "interactive": {
+      "tokens": 0,
+      "requests": 0
+    },
+    "background": {
+      "tokens": 0,
+      "requests": 0
+    }
+  },
+  "privacy": {
+    "telemetry": false,
+    "crashReports": false
+  },
+  "promptOverride": null,
+  "triggers": {
+    "enabled": false,
+    "onNewNotes": false,
+    "lastRun": null,
+    "status": "已关闭"
+  },
+  "topics": [],
+  "inbox": [],
+  "chats": [],
+  "proposals": [],
+  "revisions": [],
+  "style": {
+    "text": "",
+    "version": 1,
+    "history": [
+      {
+        "version": 1,
+        "text": ""
+      }
+    ]
+  },
+  "styleProposals": []
+}
