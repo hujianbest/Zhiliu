@@ -58,6 +58,10 @@ export async function startFakeOpenAI(): Promise<FakeOpenAI> {
       }
 
       if (req.method === 'POST' && matches(req.url, '/chat/completions')) {
+        const prompt = JSON.stringify(body);
+        const analysis = prompt.includes('分析')
+          ? JSON.stringify({ summary: '假分析：这些摘录围绕炉火与青瓷。' })
+          : '假模型回复';
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(
           JSON.stringify({
@@ -66,7 +70,7 @@ export async function startFakeOpenAI(): Promise<FakeOpenAI> {
             choices: [
               {
                 index: 0,
-                message: { role: 'assistant', content: '假模型回复' },
+                message: { role: 'assistant', content: analysis },
                 finish_reason: 'stop',
               },
             ],

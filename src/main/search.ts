@@ -1,12 +1,14 @@
 import { readFile } from 'node:fs/promises';
 import sanitizeHtml from 'sanitize-html';
-import type { AtomicNote, EmbedCall, SearchHit, SearchQueryOptions } from '../shared/api';
+import type { AtomicNote, EmbedCall, SearchHit, SearchQueryOptions, SearchQueryResult } from '../shared/api';
+import { EmbeddingError } from './embeddings';
 import type { EmbeddingAdapter } from './embeddings';
 import { extractReading } from './epub';
 import { KeywordIndex, type KeywordDoc } from './keyword-index';
 import type { Library } from './library';
 import { extractPdfReading } from './pdf';
 import type { Vault } from './vault';
+import type { Workbench } from './workbench';
 
 const SEMANTIC_THRESHOLD = 0.5;
 
@@ -19,8 +21,49 @@ function stripTags(html: string): string {
 }
 
 function parseSpine(position: string | null): number {
-  const match = /^(?:epub|pdf):(\d+):/.exec(position ?? '');
+  const match = /^(?:epub|pdf|web):(\d+):/.exec(position ?? '');
   return match ? Number(match[1]) : 0;
+}
+
+function docsForNote(note: AtomicNote, sourceTitle?: string): KeywordDoc[] {
+  const base = {
+    kind: 'note' as const,
+    sourceId: note.sourceId ?? '',
+    noteId: note.id,
+    sourcePosition: note.sourcePosition ?? '',
+    spineIndex: parseSpine(note.sourcePosition),
+    partialIndex: false,
+  };
+  if (note.provenance?.quotation === 'ai') {
+    const docs: KeywordDoc[] = [
+      {
+        ...base,
+        id: `note:${note.id}:ai`,
+        title: sourceTitle || '模型段落',
+        text: note.quotation,
+        provenance: 'ai',
+      },
+    ];
+    if (note.thought.trim()) {
+      docs.push({
+        ...base,
+        id: `note:${note.id}`,
+        title: sourceTitle || note.thought.slice(0, 40) || '笔记',
+        text: note.thought,
+        provenance: 'user',
+      });
+    }
+    return docs;
+  }
+  return [
+    {
+      ...base,
+      id: `note:${note.id}`,
+      title: sourceTitle || note.thought.trim() || note.quotation.slice(0, 40) || '笔记',
+      text: `${note.quotation}\n${note.thought}`,
+      provenance: note.kind === 'thought_note' ? 'user' : 'source',
+    },
+  ];
 }
 
 function snippet(text: string, query: string): string {
@@ -55,10 +98,7 @@ function cosine(a: number[], b: number[]): number {
 }
 
 function hitKey(hit: SearchHit): string {
-  if (hit.noteId) {
-    return `note:${hit.noteId}`;
-  }
-  return `${hit.kind}:${hit.sourceId}:${hit.spineIndex ?? 0}`;
+  return `${hit.kind}:${hit.noteId ?? ''}:${hit.sourceId}:${hit.spineIndex ?? 0}:${hit.provenance}`;
 }
 
 function toHit(doc: KeywordDoc, query: string): SearchHit {
@@ -69,6 +109,7 @@ function toHit(doc: KeywordDoc, query: string): SearchHit {
     sourceId: doc.sourceId,
     partialIndex: doc.partialIndex,
     spineIndex: doc.spineIndex,
+    provenance: doc.provenance,
   };
   if (doc.noteId) {
     hit.noteId = doc.noteId;
@@ -91,6 +132,9 @@ export class SearchIndex {
   private docs: KeywordDoc[] = [];
   private readonly keyword = new KeywordIndex();
   private readonly vectors = new Map<string, VectorDoc>();
+  private degraded: SearchQueryResult['degraded'] = null;
+
+  private workbench: Workbench | null = null;
 
   constructor(
     private readonly vault: Vault,
@@ -98,34 +142,76 @@ export class SearchIndex {
     private readonly embeddings: EmbeddingAdapter,
   ) {}
 
+  attachWorkbench(workbench: Workbench): void {
+    this.workbench = workbench;
+  }
+
   embedCalls(): EmbedCall[] {
     return this.embeddings.embedCalls();
   }
 
   async rebuild(): Promise<void> {
+    this.vectors.clear();
     await this.rebuildKeyword();
-    for (const doc of this.docs) {
-      if (!this.vectors.has(doc.id)) {
-        await this.upsertVector(doc);
+    void this.embedAll();
+  }
+
+  async seedBenchChunks(count: number): Promise<void> {
+    const batch: KeywordDoc[] = [];
+    const flush = (): void => {
+      if (batch.length === 0) {
+        return;
       }
+      this.keyword.appendAll(batch);
+      batch.length = 0;
+    };
+    for (let i = 0; i < count; i += 1) {
+      batch.push({
+        id: `bench:${i}`,
+        kind: 'epub',
+        title: `规模分块 ${i}`,
+        text: `zhiliuchunk${i} scale filler for the two-hundred-thousand chunk budget`,
+        sourceId: `bench-source-${Math.floor(i / 800)}`,
+        noteId: '',
+        sourcePosition: `epub:0:${i}:${i}`,
+        spineIndex: i % 800,
+        partialIndex: false,
+        provenance: 'source',
+      });
+      if (batch.length >= 2_000) {
+        flush();
+      }
+    }
+    flush();
+  }
+
+  private async embedAll(): Promise<void> {
+    for (const doc of this.docs) {
+      await this.upsertVector(doc);
     }
   }
 
   async indexNote(note: AtomicNote): Promise<void> {
-    await this.rebuildKeyword();
-    const doc = this.docs.find((item) => item.id === `note:${note.id}`);
-    if (doc) {
+    if (!this.vault.path) {
+      return;
+    }
+    this.keyword.open(this.vault.path);
+    this.docs = this.docs.filter((item) => item.noteId !== note.id);
+    for (const doc of docsForNote(note)) {
+      this.docs.push(doc);
+      this.keyword.upsert(doc);
       await this.upsertVector(doc);
     }
   }
 
   async indexImportedSources(): Promise<void> {
     await this.rebuildKeyword();
-    for (const doc of this.docs) {
-      if ((doc.kind === 'epub' || doc.kind === 'pdf') && !this.vectors.has(doc.id)) {
-        await this.upsertVector(doc);
-      }
-    }
+    void this.embedMissing();
+  }
+
+  async queryDetailed(q: string, options?: SearchQueryOptions): Promise<SearchQueryResult> {
+    const hits = await this.query(q, options);
+    return { hits, degraded: this.degraded };
   }
 
   async query(q: string, options?: SearchQueryOptions): Promise<SearchHit[]> {
@@ -137,12 +223,12 @@ export class SearchIndex {
     const keywordHits = mode === 'semantic' ? [] : this.keyword.query(trimmed);
     const semanticHits = mode === 'keyword' ? [] : await this.semanticQuery(trimmed);
     if (mode === 'keyword') {
-      return keywordHits;
+      return rankByProvenance(keywordHits);
     }
     if (mode === 'semantic') {
-      return semanticHits;
+      return rankByProvenance(semanticHits);
     }
-    return mergeHits(keywordHits, semanticHits);
+    return rankByProvenance(mergeHits(keywordHits, semanticHits));
   }
 
   private async rebuildKeyword(): Promise<void> {
@@ -156,12 +242,20 @@ export class SearchIndex {
     this.keyword.replaceAll(this.docs);
   }
 
+  private async embedMissing(): Promise<void> {
+    for (const doc of this.docs) {
+      if ((doc.kind === 'epub' || doc.kind === 'pdf' || doc.kind === 'article') && !this.vectors.has(doc.id)) {
+        await this.upsertVector(doc);
+      }
+    }
+  }
+
   private async upsertVector(doc: KeywordDoc): Promise<void> {
     try {
       const vector = await this.embeddings.embed(doc.id, doc.text);
       this.vectors.set(doc.id, { ...doc, vector });
-    } catch {
-      // Embedding runtime unavailable: keyword search still works.
+    } catch (error) {
+      this.degraded = classifyDegraded(error);
     }
   }
 
@@ -175,17 +269,7 @@ export class SearchIndex {
 
     for (const note of await this.vault.listNotes()) {
       const sourceTitle = note.sourceId ? titles.get(note.sourceId) : undefined;
-      docs.push({
-        id: `note:${note.id}`,
-        kind: 'note',
-        title: sourceTitle || note.thought.trim() || note.quotation.slice(0, 40) || '笔记',
-        text: `${note.quotation}\n${note.thought}`,
-        sourceId: note.sourceId ?? '',
-        noteId: note.id,
-        sourcePosition: note.sourcePosition ?? '',
-        spineIndex: parseSpine(note.sourcePosition),
-        partialIndex: false,
-      });
+      docs.push(...docsForNote(note, sourceTitle));
     }
 
     for (const source of sources) {
@@ -204,7 +288,24 @@ export class SearchIndex {
               sourcePosition: `pdf:${spineIndex}:0:0:0:0:0:0`,
               spineIndex,
               partialIndex,
+              provenance: 'source',
             });
+          });
+          continue;
+        }
+        if (source.kind === 'web' || source.kind === 'markdown') {
+          const raw = await readFile(this.library.sourcePath(source.id, source.kind), 'utf8');
+          docs.push({
+            id: `article:${source.id}:0`,
+            kind: 'article',
+            title: source.title,
+            text: stripTags(raw),
+            sourceId: source.id,
+            noteId: '',
+            sourcePosition: `web:0:0:0`,
+            spineIndex: 0,
+            partialIndex: source.indexStatus !== 'ready',
+            provenance: 'source',
           });
           continue;
         }
@@ -224,10 +325,42 @@ export class SearchIndex {
             sourcePosition: `epub:${spineIndex}:0:0`,
             spineIndex,
             partialIndex,
+            provenance: 'source',
           });
         });
       } catch {
         // Skip sources that cannot be extracted for search.
+      }
+    }
+
+    if (this.workbench) {
+      for (const draft of await this.workbench.retrievableManuscripts()) {
+        docs.push({
+          id: `draft:${draft.id}`,
+          kind: 'draft',
+          title: draft.title || '稿件',
+          text: draft.body,
+          sourceId: draft.id,
+          noteId: '',
+          sourcePosition: '',
+          spineIndex: 0,
+          partialIndex: false,
+          provenance: 'user',
+        });
+      }
+      for (const revision of await this.workbench.listRevisions()) {
+        docs.push({
+          id: `revision:${revision.id}`,
+          kind: 'note',
+          title: '并列修订',
+          text: revision.text,
+          sourceId: '',
+          noteId: revision.noteId,
+          sourcePosition: '',
+          spineIndex: 0,
+          partialIndex: false,
+          provenance: 'ai',
+        });
       }
     }
 
@@ -238,7 +371,8 @@ export class SearchIndex {
     let queryVector: number[];
     try {
       queryVector = await this.embeddings.embed('query', trimmed);
-    } catch {
+    } catch (error) {
+      this.degraded = classifyDegraded(error);
       return [];
     }
     return [...this.vectors.values()]
@@ -247,6 +381,13 @@ export class SearchIndex {
       .sort((a, b) => b.score - a.score)
       .map((item) => toHit(item.doc, trimmed));
   }
+}
+
+function rankByProvenance(hits: SearchHit[]): SearchHit[] {
+  const order: Record<SearchHit['provenance'], number> = { user: 0, source: 1, ai: 2 };
+  return hits
+    .slice()
+    .sort((a, b) => (order[a.provenance] ?? 9) - (order[b.provenance] ?? 9));
 }
 
 function mergeHits(keywordHits: SearchHit[], semanticHits: SearchHit[]): SearchHit[] {
@@ -261,4 +402,15 @@ function mergeHits(keywordHits: SearchHit[], semanticHits: SearchHit[]): SearchH
     merged.push(hit);
   }
   return merged;
+}
+
+function classifyDegraded(error: unknown): SearchQueryResult['degraded'] {
+  if (error instanceof EmbeddingError) {
+    return error.code;
+  }
+  const code = error && typeof error === 'object' && 'code' in error ? String((error as { code: unknown }).code) : '';
+  if (code === 'missing-model' || code === 'onnx' || code === 'worker') {
+    return code;
+  }
+  return 'worker';
 }

@@ -103,11 +103,15 @@ test('语义检索书籍命中仍标注部分索引，且不发出网络请求',
       }
     });
 
-    const bookHits = await session.window.evaluate(
-      async (phrase) => window.zhiliu.search.query(phrase, { mode: 'semantic' }),
-      bookPhrase,
-    );
-    expect(bookHits.some((hit) => hit.kind === 'epub' && hit.partialIndex)).toBeTruthy();
+    await expect
+      .poll(async () => {
+        const bookHits = await session.window.evaluate(
+          async (phrase) => window.zhiliu.search.query(phrase, { mode: 'semantic' }),
+          bookPhrase,
+        );
+        return bookHits.some((hit) => hit.kind === 'epub' && hit.partialIndex);
+      })
+      .toBeTruthy();
 
     const dialog = session.window.getByRole('dialog', { name: '检索' });
     await session.window.getByRole('button', { name: '检索', exact: true }).click();

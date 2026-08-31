@@ -38,6 +38,9 @@
             <p id="library-error" role="alert" hidden></p>
             <ul id="library-list" aria-label="书库"></ul>
             <button type="button" id="import-epub">导入 EPUB 或 PDF</button>
+            <button type="button" id="import-url">导入网页</button>
+            <button type="button" id="import-markdown">导入 Markdown 文件夹</button>
+            <p id="markdown-import-hint" class="lede">导入 Markdown 是一次性复制，原文件夹之后的修改不会同步到知流。</p>
           </div>
           <div id="library-reader" hidden tabindex="-1">
             <div class="reader-bar">
@@ -72,10 +75,75 @@
         <section data-space-panel="thoughts" hidden>
           <h1>思想</h1>
           <p class="lede">摘录与思想笔记会在这里生长，而不是堆在聊天记录里。</p>
+          <p id="thoughts-empty">还没有笔记。阅读时记下一段，就会出现在这里。</p>
+          <p id="thoughts-cta">
+            <button type="button" id="thoughts-to-library">去书库阅读</button>
+          </p>
+          <ul id="thoughts-notes" aria-label="全部笔记"></ul>
+          <h2>并列修订</h2>
+          <ul id="revision-list" aria-label="并列修订"></ul>
+          <h2>需要修复</h2>
+          <p id="broken-empty">没有需要修复的文件。</p>
+          <ul id="broken-list" aria-label="需要修复"></ul>
+          <h2>冲突副本</h2>
+          <p id="conflict-empty">没有待处理的冲突副本。</p>
+          <ul id="conflict-list" aria-label="冲突副本"></ul>
+          <h2>历史</h2>
+          <p class="lede">每一次记下或导入都会出现在这里。回滚会把知识库恢复到当时的样子。</p>
+          <p id="history-empty">还没有可回看的操作。</p>
+          <ul id="history-list" aria-label="历史时间线"></ul>
         </section>
         <section data-space-panel="creation" hidden>
           <h1>创作</h1>
           <p class="lede">稿件在这里写成，来源归属会一直看得见。</p>
+          <p id="creation-empty">还没有稿件。可以手工新建，也可以从提案生成正式稿。</p>
+          <button type="button" id="new-manuscript">新建正式稿</button>
+          <ul id="manuscript-list" aria-label="稿件"></ul>
+          <label>
+            标题
+            <input id="draft-title" aria-label="稿件标题" />
+          </label>
+          <label>
+            正文
+            <textarea id="draft-body" aria-label="稿件正文" rows="8"></textarea>
+          </label>
+          <div id="draft-preview" aria-label="预览"></div>
+          <p id="draft-spans" hidden></p>
+          <section id="citation-editor" hidden>
+            <h2>引用</h2>
+            <ul id="citation-list" aria-label="引用"></ul>
+          </section>
+          <div class="settings-actions">
+            <button type="button" id="draft-save">保存稿件</button>
+            <button type="button" id="draft-finalize">定稿</button>
+            <button type="button" id="draft-unfinalize">撤回定稿</button>
+            <button type="button" id="draft-export">导出 Markdown</button>
+            <button type="button" id="draft-export-plain">复制纯文本</button>
+            <button type="button" id="draft-export-html">复制富文本</button>
+          </div>
+          <label class="search-semantic">
+            <input id="export-footnotes" type="checkbox" checked />
+            脚注与来源清单
+          </label>
+          <p id="export-output" hidden></p>
+          <h2>主题</h2>
+          <button type="button" id="organize-topics" aria-label="组织主题（主栏）">组织主题</button>
+          <ul id="topic-list" aria-label="主题"></ul>
+          <h2>建议收件箱</h2>
+          <h3>你的思想线索</h3>
+          <ul id="inbox-signal" aria-label="你的思想线索"></ul>
+          <h3>从书库发现</h3>
+          <ul id="inbox-discovery" aria-label="从书库发现"></ul>
+          <h2>提案</h2>
+          <ul id="proposal-list" aria-label="提案"></ul>
+          <h2>风格档案</h2>
+          <textarea id="style-text" aria-label="风格档案" rows="4"></textarea>
+          <ul id="style-proposals" aria-label="风格更新提案"></ul>
+          <div class="settings-actions">
+            <button type="button" id="style-save">保存风格</button>
+            <button type="button" id="style-rollback">回滚风格</button>
+            <button type="button" id="style-reset">重置风格</button>
+          </div>
         </section>
       </main>
 
@@ -84,6 +152,19 @@
         <p class="lede" id="agent-copy">侧栏跟随三个空间。配置模型之后，提问不会替换正在阅读的页面。</p>
         <p id="agent-unconfigured" hidden>尚未配置模型。</p>
         <button type="button" id="agent-open-settings" hidden>打开设置</button>
+        <button type="button" id="agent-analyze">开始分析</button>
+        <button type="button" id="agent-organize" aria-label="组织主题（侧栏）">组织主题</button>
+        <p id="agent-status" role="status"></p>
+        <p id="agent-result"></p>
+        <p id="agent-usage" role="status"></p>
+        <p id="agent-paused" hidden>后台已暂停</p>
+        <p id="trigger-status" role="status"></p>
+        <label>
+          提问
+          <textarea id="agent-question" aria-label="提问" rows="3"></textarea>
+        </label>
+        <button type="button" id="agent-ask">提问</button>
+        <ul id="agent-chat" aria-label="对话"></ul>
       </aside>
     </div>
 
@@ -98,6 +179,7 @@
         语义
       </label>
       <p id="search-empty" hidden>没有找到匹配的内容。换个词再试。</p>
+      <p id="search-degraded" hidden role="status"></p>
       <ul id="search-results" aria-label="检索结果"></ul>
       <button type="button" id="search-close">关闭</button>
     </dialog>
@@ -126,11 +208,114 @@
           <button type="button" data-probe="deep">测试连通性</button>
           <p class="probe-status" data-probe-result="deep" role="status"></p>
         </fieldset>
+        <fieldset>
+          <legend>Agent 预算</legend>
+          <label>后台每日 Token <input name="budget-daily-tokens" type="number" aria-label="后台每日 Token" /></label>
+          <label>后台每月 Token <input name="budget-monthly-tokens" type="number" aria-label="后台每月 Token" /></label>
+          <label>后台每日请求数 <input name="budget-daily-requests" type="number" aria-label="后台每日请求数" /></label>
+          <label>后台每月请求数 <input name="budget-monthly-requests" type="number" aria-label="后台每月请求数" /></label>
+          <label class="search-semantic"><input name="budget-shared" type="checkbox" /> 共享硬上限</label>
+        </fieldset>
+        <fieldset>
+          <legend>提示词</legend>
+          <label>覆盖提示词 <textarea name="prompt-override" aria-label="覆盖提示词" rows="3"></textarea></label>
+          <button type="button" id="prompt-reset">恢复默认提示词</button>
+        </fieldset>
+        <fieldset>
+          <legend>隐私</legend>
+          <p>知识库是明文 Markdown。保密性依赖操作系统账户权限与磁盘加密，而不是专有格式。</p>
+          <label class="search-semantic"><input name="telemetry" type="checkbox" /> 开启匿名遥测</label>
+          <label class="search-semantic"><input name="crash-reports" type="checkbox" /> 开启匿名崩溃与性能报告</label>
+        </fieldset>
+        <fieldset>
+          <legend>自动工作</legend>
+          <label class="search-semantic"><input name="triggers-enabled" type="checkbox" /> 允许自动工作</label>
+          <label class="search-semantic"><input name="triggers-notes" type="checkbox" /> 新增笔记后自动分析</label>
+          <p id="settings-trigger-status" role="status">自动工作：已关闭</p>
+        </fieldset>
+        <fieldset>
+          <legend>快捷键</legend>
+          <ul>
+            <li>检索 Ctrl+K</li>
+            <li>设置 Ctrl+,</li>
+            <li>记下这段 Ctrl+M</li>
+            <li>书库/阅读 Ctrl+1 · 思想 Ctrl+2 · 创作 Ctrl+3</li>
+            <li>目录 T · 上一章 ← · 下一章 → · 标记已读 Shift+R</li>
+          </ul>
+        </fieldset>
         <div class="settings-actions">
           <button type="submit">保存</button>
           <button type="button" id="settings-close" value="cancel">关闭</button>
         </div>
         <p id="settings-saved" class="probe-status" role="status"></p>
+      </form>
+    </dialog>
+    <dialog id="revision-edit-dialog" aria-labelledby="revision-edit-title">
+      <form id="revision-edit-form">
+        <h2 id="revision-edit-title">编辑修订</h2>
+        <label>
+          修订正文
+          <textarea id="revision-edit-text" name="revision" aria-label="修订正文" rows="6"></textarea>
+        </label>
+        <div class="settings-actions">
+          <button type="submit">采用</button>
+          <button type="button" id="revision-edit-cancel">取消</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="note-edit-dialog" aria-labelledby="note-edit-title">
+      <form id="note-edit-form">
+        <h2 id="note-edit-title">编辑笔记</h2>
+        <label>
+          引文
+          <textarea id="note-edit-quotation" name="quotation" aria-label="引文" rows="3"></textarea>
+        </label>
+        <label>
+          想法
+          <textarea id="note-edit-thought" name="thought" aria-label="想法" rows="4"></textarea>
+        </label>
+        <div class="settings-actions">
+          <button type="submit">保存</button>
+          <button type="button" id="note-edit-cancel">取消</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="url-dialog" aria-labelledby="url-title">
+      <form id="url-form">
+        <h2 id="url-title">导入网页</h2>
+        <label>
+          文章网址
+          <input id="url-input" type="url" name="url" aria-label="文章网址" autocomplete="off" spellcheck="false" />
+        </label>
+        <p id="url-error" role="alert" hidden></p>
+        <div class="settings-actions">
+          <button type="submit">导入</button>
+          <button type="button" id="url-cancel">取消</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="rollback-dialog" aria-labelledby="rollback-title">
+      <h2 id="rollback-title">回滚到此处</h2>
+      <p>之后记下的内容会从知识库里撤掉，回到这一刻的样子。</p>
+      <p id="rollback-summary"></p>
+      <div class="settings-actions">
+        <button type="button" id="rollback-confirm">确定回滚</button>
+        <button type="button" id="rollback-cancel">取消</button>
+      </div>
+    </dialog>
+    <dialog id="repair-dialog" aria-labelledby="repair-title">
+      <form id="repair-form">
+        <h2 id="repair-title">修复笔记</h2>
+        <p id="repair-file"></p>
+        <p class="lede">补回原来的稳定标识。知流不会悄悄换一个新的。</p>
+        <label>
+          稳定标识
+          <input id="repair-id" name="id" aria-label="稳定标识" autocomplete="off" spellcheck="false" />
+        </label>
+        <div class="settings-actions">
+          <button type="submit">修复</button>
+          <button type="button" id="repair-cancel">取消</button>
+        </div>
       </form>
     </dialog>
     <dialog id="toc-dialog" aria-labelledby="toc-title">
