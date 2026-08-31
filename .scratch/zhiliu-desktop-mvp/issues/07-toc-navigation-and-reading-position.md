@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 目录跳转到第三章，重启应用断言回到该位置且阅读状态为「在读」；读到末章断言状态变为「已读」，再撤销该标记断言回到「在读」。
 
@@ -22,3 +22,4 @@
 
 - 2026-08-30 按旧票 06 实现了目录、重启恢复位置与显式已读。界面文案目前是「阅读中」而非「在读」。已读目前只来自「标记已读 / 撤销已读」（Shift+R），尚未做「读到末章自动已读」。Agent 分析不改状态的测试仍在 `e2e/toc-position.spec.ts`；评审后该断言改由票 22 承接。见 `docs/adr/0018-reading-progress-vault-vs-userdata.md`。
 - 2026-08-30 文案改为「在读」。到达末章（翻页或目录跳转，且上一位置不是末章）自动已读；撤销后保持在读，再次到达末章才重新已读。E2E：`e2e/toc-position.spec.ts`。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。

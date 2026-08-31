@@ -4,7 +4,7 @@
 
 **Blocked by:** 08
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 检索一个只出现在笔记里的中文词和一个只出现在来源文档正文里的英文词，断言各自命中并能跳到出处；再检索一个两字中文词，断言同样命中；再在一份来源文档尚未索引完成时检索，断言结果中明确标注该来源仍在索引。
 
@@ -23,3 +23,4 @@
 
 - 2026-08-30 按旧票 08 实现了全局「检索」（Ctrl+K）与中英文命中、跳转、部分索引标注。当前关键词引擎是主进程 **MiniSearch 内存索引**，不是本票修订后要求的 SQLite FTS5 / trigram / LIKE（ADR-0006、ADR-0008）。E2E：`e2e/search.spec.ts`。过渡说明见 `docs/adr/0020-interim-minisearch-keyword-index.md`。
 - 2026-08-30 关键词引擎改为 `.zhiliu/cache/search.sqlite` 上的 FTS5：unicode61 拉丁文表、trigram 中日韩表、两字中文 `LIKE`。见 ADR-0023。两字词断言覆盖「青瓷」。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。

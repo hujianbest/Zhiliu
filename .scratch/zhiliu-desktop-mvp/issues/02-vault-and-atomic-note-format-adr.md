@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 首次运行创建知识库，断言磁盘上出现可被外部文本编辑器读取的结构；重启应用断言无需再次选择即打开同一知识库。
 
@@ -22,3 +22,4 @@
 ## Comments
 
 - 2026-08-29 票 02 已实现。布局与标识见 `docs/adr/0014-vault-layout-and-stable-identifiers.md`（评审后「来源文件进知识库」见 ADR-0001）。首次运行用「选择知识库位置」；E2E 用 `ZHILIU_CHOOSE_DIRECTORY` 代替系统目录对话框。笔记按 Frontmatter 的 `id` 解析，不依赖文件名。空 `thought` 为摘录。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。

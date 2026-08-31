@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 导入 EPUB 素材后断言书库列表出现该来源文档的标题，且原件已被复制进知识库的来源目录；随后把整个知识库目录复制到另一个路径并打开，断言来源文件与其笔记关系都完整（承接票 02 未能断言的部分）。
 
@@ -22,3 +22,4 @@
 ## Comments
 
 - 2026-08-30 票 04 已实现。书库列表来自 `.zhiliu/library.json`；EPUB 以稳定 id 存入 `sources/`（ADR-0001、`docs/adr/0016-source-catalog-and-ignored-binaries.md`）。E2E 用 `e2e/fixtures/*.epub` 与 `ZHILIU_CHOOSE_FILES`。损坏文件不留半成品。索引状态目前为「待索引」。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。

@@ -4,7 +4,7 @@
 
 **Blocked by:** 07, 08
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 导入文本型 PDF 素材、选中文本层保存一条思想笔记，断言其出处含页码与页内坐标并可跳回该位置。
 
@@ -21,3 +21,4 @@
 ## Comments
 
 - 2026-08-30 主进程用 pdf.js 抽出文本层做成净化 HTML，走与 EPUB 相同的无脚本 iframe。出处为 `pdf:<page>:<start>:<end>:<x0>:<y0>:<x1>:<y1>`。无文本层时 chrome 提示无法选中。E2E：`e2e/pdf.spec.ts`。见 ADR-0024。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。

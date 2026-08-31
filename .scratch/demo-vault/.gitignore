@@ -1,0 +1,7 @@
+# Source binaries and rebuildable artefacts. Knowledge text stays tracked.
+*.epub
+*.pdf
+.zhiliu/cache/
+.zhiliu/ocr/
+models/
+*.onnx

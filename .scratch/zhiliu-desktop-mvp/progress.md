@@ -3,7 +3,7 @@
 - 当前阶段: done
 - 执行模式: auto
 - 已加载: hf-ui-design
-- 下一步: 无（已收口）。下次交互呈上演示路径。票 14 OCR 仍为 needs-triage；票 06 平台人验不在本环境假装完成。
+- 下一步: 演示路径已向用户呈上，等待体验反馈。票 14 OCR 仍为 needs-triage；票 06 为 ready-for-human。
 
 ## 交付摘要
 

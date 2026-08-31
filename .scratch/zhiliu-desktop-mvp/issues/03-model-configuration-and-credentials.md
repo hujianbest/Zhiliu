@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 配置两个模型角色并保存，断言 API Key 不出现在知识库任何文件与日志中，且对无效端点的连通性测试报出可区分的错误。
 
@@ -20,3 +20,4 @@
 ## Comments
 
 - 2026-08-30 票 03 已实现。设置入口为可见「设置」按钮与 Ctrl+,。非机密项写入 userData `preferences.json`；API Key 经 `CredentialStore` 保存，见 `docs/adr/0015-os-credential-store-for-api-keys.md`。`ZHILIU_E2E=1` 时用假适配器；平台薄合约测试默认 skip，需 `ZHILIU_PLATFORM_CREDENTIALS=1`。导出通道断言留给票 34。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。

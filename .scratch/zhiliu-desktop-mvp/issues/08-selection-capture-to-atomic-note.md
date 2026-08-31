@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 选中一段文字、按快捷键、输入想法、回车，断言磁盘出现一条思想笔记，且能从它跳回精确出处。
 
@@ -22,3 +22,4 @@
 
 - 2026-08-30 按旧票 07 实现捕获。可见「记下这段」与 Ctrl+M。空想法为 `kind: excerpt`。本书笔记列表目前展示引文与想法，尚未用单独标签区分摘录/思想笔记。`source_position` 为 `epub:<spineIndex>:<startOffset>:<endOffset>`。E2E：`e2e/capture.spec.ts`。见 `docs/adr/0019-epub-source-position-string.md`。
 - 2026-08-30 本书笔记列表用文字标签「摘录」「思想笔记」区分两种形态。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。

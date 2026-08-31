@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 在一个隔离的临时目录中启动打包后的应用，向假 OpenAI 兼容服务发起一次调用，断言该服务确实记录到这次调用、且请求中不含任何真实凭据；断言应用退出后临时目录被清理。同时附带断言三个主空间导航与全局 Agent 侧栏都存在。
 
@@ -25,3 +25,4 @@
 
 - 2026-08-29 票 01 已按当时规格实现外壳与测试缝。框架见评审后的 `docs/adr/0005-electron-as-the-desktop-framework.md`。当前 `npm test` 用 Playwright 启动**未打包**的 Electron（`e2e/helpers/launch.ts` 的 `launchZhiliu()`），尚未改成启动打包二进制，也尚未落 `utilityProcess` 骨架与 fuse 文档。Windows / macOS 启动未在本环境验证。
 - 2026-08-30 打包缝已补齐：`npm test` 先 `pack:dir` 再让 Playwright 启动 `release/<platform>-unpacked` 二进制；`electron-builder.yml` 打开 `enableNodeCliInspectArguments`；`utilityProcess` 骨架见 `src/main/utility-host.ts` 与 ADR-0022；断言范围见 `docs/e2e-assertions.md`；最低系统见 `docs/supported-platforms.md` 与 `scripts/platform-floors.mjs`。Windows / macOS 真机启动仍未在本环境验证。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。Windows 真机启动仍由票 06 人验承接。

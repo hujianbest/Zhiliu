@@ -6,7 +6,7 @@
 
 **Blocked by:** 03, 04
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 **Starting failing test:** 对打包产物执行冒烟测试：安装、启动、打开文件、读取系统凭据、完成一次基础导入，断言全部通过；断言 macOS 产物的代码签名标识在两次连续构建之间保持一致，而非随内容哈希变化。
 
@@ -27,3 +27,4 @@
 ## Comments
 
 - 2026-08-30 AUTO 在 Linux 云环境落地 `electron-builder`：`npm run pack` / `pack:dir` / `pack:win` / `pack:mac`。Playwright 启动 `release/linux-unpacked/zhiliu`；冒烟覆盖启动、打开 EPUB、读取已保存凭据、导入；`keytar` 从 asar 解出；`EnableNodeCliInspectArguments` fuse 保持开启。`pack:mac` 在缺少 `ZHILIU_CODESIGN_IDENTITY` / `CSC_LINK` 时拒绝 ad-hoc。证书导出/恢复流程见 `docs/codesign-certificate.md`，私钥不进仓库。Windows NSIS 与 macOS 自签 DMG 未在本环境实际产出；连续签名标识测试在 `e2e/codesign-platform.spec.ts` 于非 macOS 上 skip；Gatekeeper 弹窗的人工核对未做。见 `docs/packaging.md`、A-13。
+- 2026-08-31 剩余项是 Windows NSIS、macOS 自签 DMG、证书保管与 Gatekeeper/SmartScreen 人验，状态从 ready-for-agent 改为 ready-for-human。

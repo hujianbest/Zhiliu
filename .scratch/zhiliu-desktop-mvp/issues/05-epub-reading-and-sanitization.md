@@ -4,7 +4,7 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Starting failing test:** 打开已导入的 EPUB 素材并断言正文文本被渲染且可选中，同时断言含脚本的素材中的脚本没有执行。
 
@@ -19,3 +19,4 @@
 ## Comments
 
 - 2026-08-30 票 05 已实现。阅读在「书库/阅读」内。主进程按 OPF spine 抽出章节并 `sanitize-html`；iframe `sandbox="allow-same-origin"` 且无 `allow-scripts`。E2E：`e2e/reading.spec.ts`。见 `docs/adr/0017-epub-sanitized-iframe-reading.md`。
+- 2026-08-31 验收项已全部勾选，状态从 ready-for-agent 改为 done。
