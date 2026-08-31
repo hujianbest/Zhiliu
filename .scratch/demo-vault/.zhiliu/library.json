@@ -36,6 +36,24 @@
       "authors": [],
       "indexStatus": "pending",
       "originalFilename": "selectable-notes.pdf"
+    },
+    {
+      "id": "111a8262-3c69-41a6-a0f1-50a4f65cd1bf",
+      "kind": "epub",
+      "title": "炉边小札",
+      "authors": [
+        "林间"
+      ],
+      "indexStatus": "pending",
+      "originalFilename": "fireside-notes.epub"
+    },
+    {
+      "id": "a824530f-10cd-4c47-8573-cc583e4cbb43",
+      "kind": "pdf",
+      "title": "selectable-notes",
+      "authors": [],
+      "indexStatus": "pending",
+      "originalFilename": "selectable-notes.pdf"
     }
   ]
 }
